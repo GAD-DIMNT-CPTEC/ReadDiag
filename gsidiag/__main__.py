@@ -1607,6 +1607,13 @@ class plot_diag(object):
 
         print(separator)
         print()
+        
+        if varName == 'amsua':
+            zchans_all = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15] #list of all channels of the amsua sensor
+        elif varName == 'hirs4':
+            zchans_all = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19] #list of all channels of the hirs/4 sensor
+        else:
+            zchans_all = list(map(int,self[0].obsInfo[varName].loc[varType].nchan.unique()))
 
         if mask == None:
             maski  = "iuse>-99999.9"
@@ -1620,13 +1627,13 @@ class plot_diag(object):
             chanList = 1
             zchans_def = zchan
         elif channel == None:
-            zchan = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]  #list of all channels of the amsua sensor 
+            zchan = zchans_all       #list of all channels of the sensor 
             chanList = 0
             zchans_def = zchan
         else:
             zchan = channel
             chanList = 0 
-            zchans_def = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]  #list of all channels of the amsua sensor 
+            zchans_def = zchans_all  #list of all channels of the sensor 
 
             
 #         print(zchan,chanList)

@@ -777,7 +777,13 @@ observations:
     details:
       - var: amsua
         abbreviation: radiance
-        instrument: Radiance - AMSU-A - NOAA-19.    #Radiance data of the AMSU-A sensor from NOAA-18 sat.
+        instrument: Radiance - AMSU-A - NOAA-19.    #Radiance data of the AMSU-A sensor from NOAA-19 sat.
+        color: "#2e8e24"
+        symbol: x
+        iuse: "1"
+      - var: hirs4
+        abbreviation: radiance
+        instrument: Radiance - HIRS/4 - NOAA-19.    #Radiance data of the HIRS/4 sensor from NOAA-19 sat.
         color: "#2e8e24"
         symbol: x
         iuse: "1"
