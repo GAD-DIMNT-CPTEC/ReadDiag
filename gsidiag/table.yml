@@ -247,6 +247,14 @@ observations:
         color: "#7b4173"
         symbol: s
         iuse: "1"
+  - kx: 230
+    details:
+      - var: uv
+        abbreviation: AIRCFT
+        instrument: AIREP PIREP Avião Sensores
+        color: "#98df8a"
+        symbol: "*"
+        iuse: "1"
   - kx: 232
     details:
       - var: uv

@@ -2517,6 +2517,440 @@ class plot_diag(object):
                             bbox_inches='tight', dpi=100)
 
 
+
+# Avaliação idq radiancia
+    def statcount_idqc(self, varName=None, varType=None, dateIni=None, dateFin=None, nHour="06", channel=None, figTS=False, figMap=False, **kwargs):
+
+        '''
+        The StatCount_idqc function plots a time series of the idqc flags. 
+
+        Example:
+
+        varName = 'uv'           # Variable
+        varType = 224            # Source Type
+        dateIni = 2013010100     # Inicial Date
+        dateFin = 2013010900     # Final Date
+        nHour = "06"             # Time Interval
+        channel = 10             # Radiance channel number
+        figTS = True             # Creates the time series plot
+        figMap = False           # Creates the spatial plot for each time        
+        
+        ! Table: classification idqc flags
+        !
+        !    +--------+-------------------------------------------------+--------+-------------------------------------------------+
+        !    |   idqc |   flag                                          |   idqc |   flag                                          |
+        !    +--------+-------------------------------------------------+--------+-------------------------------------------------+
+        !    |   0    | boa observação                                  |   7    | rejeitar devido a 'nuvem > limite' para canal   |
+        !    |        |                                                 |        | na rotina qc                                    |
+        !    +--------+-------------------------------------------------+--------+-------------------------------------------------+
+        !    |   1    | rejeitar devido ao flag no radinfo              |   8    | rejeitar devido a estimativa imprecisa de emis- |
+        !    |        |                                                 |        | sividade/temperatura da superfície na rotina qc |
+        !    +--------+-------------------------------------------------+--------+-------------------------------------------------+
+        !    |   2    | falha no CRTM                                   |   9    | rejeitar devido as observações estarem fora do  |
+        !    |        |                                                 |        | intervalo na rotina de controle de qualidade    |
+        !    +--------+-------------------------------------------------+--------+-------------------------------------------------+
+        !    |   3    | Rejeitar devido a falha grosseira               |   10   | rejeitar devido a recuperação física de tempera-|
+        !    |        | de verificação                                  |        | tura de superfície muito grande na rotina qc    |
+        !    +--------+-------------------------------------------------+--------+-------------------------------------------------+
+        !    |   4    | rejeitar devido à verificação                   |   50   | rejeitar porque 'factch6 > limite' na sub-rotina|
+        !    |        | de intercâmbio                                  |        | qc_amsua                                        |
+        !    +--------+-------------------------------------------------+--------+-------------------------------------------------+
+        !    |   5    | rejeitar devido a não usar sobre esta superfície|   51   | rejeitar porque 'factch4 > limite' na sub-rotina|
+        !    |        | na rotina de controle de qualidade              |        | qc_amsua                                        |
+        !    +--------+-------------------------------------------------+--------+-------------------------------------------------+
+        !    |   6    | rejeitar devido a verificação bruta na rotina   |
+        !    |        | de controle de qualidade específica             |
+        !    +--------+-------------------------------------------------+
+        '''
+
+
+        varInfo = getVarInfo(varType, varName, 'instrument')
+        if varInfo is not None:
+            instrument_title = str(varName) + '-' + str(varType) + '  |  ' + varInfo
+        else:
+            instrument_title = str(varName) + '-' + str(varType) + '  |  ' + 'Unknown instrument'
+
+        datei = datetime.strptime(str(dateIni), "%Y%m%d%H")
+        datef = datetime.strptime(str(dateFin), "%Y%m%d%H")
+        date  = datei
+
+        flags, aux0 = [], []
+        nf = {}
+        
+        DayHour_tmp = []
+        
+        if varName == 'amsua':
+            #flags = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 50, 51]
+            aux0 = list(map(round,self[0].obsInfo[varName].query("nchan=="+str(channel)).loc[varType].idqc))
+            flags = pd.unique(aux0)
+            flags.sort()
+        elif varName == 'hirs4':
+            #flags = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 50, 51]
+            aux0 = list(map(round,self[0].obsInfo[varName].query("nchan=="+str(channel)).loc[varType].idqc))
+            flags = pd.unique(aux0)
+            flags.sort()
+        else:
+            print(setcolor.WARNING + "    >>> Flags for sensor " + varName + " not set <<< " + setcolor.ENDC)
+                    
+        [nf.update({int(i): []}) for i in flags]
+        
+        f = 0
+        while (date <= datef):
+
+            datefmt = date.strftime("%Y%m%d%H")
+            DayHour_tmp.append(date.strftime("%d%H"))
+            
+#             list_flags, name_list = {}, {}
+#             [ list_flags.update({int(i): []}) for i in flags ]
+#             [ name_list.update({int(i): []}) for i in flags ]
+#             print('list_flags = ', list_flags)
+#             print('name_list = ', name_list)
+            
+            
+            # try: For issues reading the file (file not found)
+            # in the except statement an error message is printed and continues for other dates
+            try:
+                
+                soma_flags = 0
+                setColor = 0 
+                legend_labels = []
+                fig = plt.figure(figsize=(12, 6))
+                ax  = fig.add_subplot(1, 1, 1)
+                ax = geoMap(area=None,ax=ax)
+                
+                for ll in range(len(flags)):
+                    fl = flags[ll]
+                    print('ll = ', ll,'flag = ', fl)
+                    aux1 = []
+                    
+                    #---------------- flags inteiras ------------#
+                    exp  = "(nchan=="+str(channel)+") & (idqc=="+str(fl)+")"
+                    
+                    #---------------- lista com os dados da flag ------------#
+                    aux1 = self[f].obsInfo[varName].loc[varType].query(exp)
+                    
+                    #---------------- cria lista da serie temp da qntdd de dados da flag ------------#
+                    #nf[int(fl)].append(len(aux1))
+                    #print('nf = ', nf)                    
+                    
+                    #---------------- soma qntdd de dados rejeitados (idqc!=0) ------------#
+                    if (fl != 0.0):
+                        soma_flags = soma_flags + len(aux1)
+                    
+                    #---------------- Comandos de plote ------------#
+                    if ( len(aux1) > 0 ):
+                        label = "flag "+str(fl)+" ["+str(len(aux1))+"]"
+                        #color = getColor(minVal=0, maxVal=len(flags)-1, 
+                        #                 value=fl,hex=True,cmapName='Paired')
+                        color = getColor(minVal=0, maxVal=len(flags), 
+                                         value=ll,hex=True,cmapName='tab20')
+                        
+                        
+                        legend_labels.append(mpatches.Patch(color=color, label=label) )
+                        ax = aux1.plot(ax=ax,legend=True, marker="o", color=color, **kwargs)
+                        setColor += 1
+                        plt.legend(handles=legend_labels, numpoints=1, loc='center left', bbox_to_anchor=(1.0, 0.5), 
+                                   fancybox=True, shadow=False, frameon=False, ncol=1, prop={"size": 10})
+                    
+                #---------------- FIM for --> flags inteiras ------------#
+                    
+                for ll in range(len(flags)):
+                    fl = flags[ll]
+                    print('ll = ', ll,'flag = ', fl)
+                    aux1 = []
+                     
+                    #---------------- teste flegs decimais com arredondamento ------------#
+                    if (fl <= -1):
+                        inf = fl - 1
+                        exp  = "(nchan=="+str(channel)+") & (idqc>"+str(inf)+" & idqc<"+str(fl)+")"
+                        
+                        #---------------- lista com os dados da flag ------------#
+                        aux1 = self[f].obsInfo[varName].loc[varType].query(exp)
+                        
+                        #---------------- soma qntdd de dados rejeitados (idqc!=0) ------------#
+                        if (fl != 0.0):
+                            soma_flags = soma_flags + len(aux1)
+                            
+                        #---------------- Comandos de plote ------------#
+                        if ( len(aux1) > 0 ):
+                            label = "flag btw ("+str(inf)+" "+str(fl)+") ["+str(len(aux1))+"]"
+                            #color = getColor(minVal=0, maxVal=len(flags)-1, 
+                            #                 value=fl,hex=True,cmapName='Paired')
+                            color = getColor(minVal=0, maxVal=len(flags), 
+                                             value=ll,hex=True,cmapName='tab20')
+                        
+                            legend_labels.append(mpatches.Patch(color=color, label=label) )
+                            ax = aux1.plot(ax=ax,legend=True, marker="o", color=color, **kwargs)
+                            setColor += 1
+                            plt.legend(handles=legend_labels, numpoints=1, loc='center left', bbox_to_anchor=(1.0, 0.5), 
+                                       fancybox=True, shadow=False, frameon=False, ncol=1, prop={"size": 10})
+                        
+                    elif (fl >= 1):
+                        sup = fl + 1
+                        exp  = "(nchan=="+str(channel)+") & (idqc>"+str(fl)+" & idqc<"+str(sup)+")"
+                        
+                        #---------------- lista com os dados da flag ------------#
+                        aux1 = self[f].obsInfo[varName].loc[varType].query(exp)
+                        
+                        #---------------- soma qntdd de dados rejeitados (idqc!=0) ------------#
+                        if (fl != 0.0):
+                            soma_flags = soma_flags + len(aux1)
+                            
+                        #---------------- Comandos de plote ------------#
+                        if ( len(aux1) > 0 ):
+                            label = "flag btw ("+str(fl)+" "+str(sup)+") ["+str(len(aux1))+"]"
+                            #color = getColor(minVal=0, maxVal=len(flags)-1, 
+                            #                 value=fl,hex=True,cmapName='Paired')
+                            color = getColor(minVal=0, maxVal=len(flags), 
+                                             value=ll,hex=True,cmapName='tab20')
+                        
+                            legend_labels.append(mpatches.Patch(color=color, label=label) )
+                            ax = aux1.plot(ax=ax,legend=True, marker="o", color=color, **kwargs)
+                            setColor += 1
+                            plt.legend(handles=legend_labels, numpoints=1, loc='center left', bbox_to_anchor=(1.0, 0.5), 
+                                       fancybox=True, shadow=False, frameon=False, ncol=1, prop={"size": 10})
+                        
+                    else:
+                        sup = fl + 1
+                        inf = fl - 1
+                        exp  = "(nchan=="+str(channel)+") & (idqc>"+str(inf)+" & idqc<"+str(sup)+")"
+                        
+                        #---------------- lista com os dados da flag ------------#
+                        aux1 = self[f].obsInfo[varName].loc[varType].query(exp)
+                        
+                        #---------------- soma qntdd de dados rejeitados (idqc!=0) ------------#
+                        if (fl != 0.0):
+                            soma_flags = soma_flags + len(aux1)
+                            
+                        #---------------- Comandos de plote ------------#
+                        if ( len(aux1) > 0 ):
+                            label = "flag btw ("+str(inf)+" "+str(sup)+") ["+str(len(aux1))+"]"
+                            #color = getColor(minVal=0, maxVal=len(flags)-1, 
+                            #                 value=fl,hex=True,cmapName='Paired')
+                            color = getColor(minVal=0, maxVal=len(flags), 
+                                             value=ll,hex=True,cmapName='tab20')
+                        
+                            legend_labels.append(mpatches.Patch(color=color, label=label) )
+                            ax = aux1.plot(ax=ax,legend=True, marker="o", color=color, **kwargs)
+                            setColor += 1
+                            plt.legend(handles=legend_labels, numpoints=1, loc='center left', bbox_to_anchor=(1.0, 0.5), 
+                                       fancybox=True, shadow=False, frameon=False, ncol=1, prop={"size": 10})
+                    
+                #---------------- FIM for --> flags decimas - intervalos ------------#
+                    
+                
+                #---------------- comandos finais do plote e salva figura ------------#
+                forplot = 'Channel ='+str(channel)+' | Rejected total ='+str(soma_flags)
+                
+                date_title = str(date.strftime("%d%b%Y - %H%M")) + ' GMT'
+                plt.title(date_title, loc='right', fontsize=10)
+                plt.title(instrument_title, loc='left', fontsize=9)
+                plt.annotate(forplot, xy=(0.45, 1.015), xytext=(0, 0), xycoords='axes fraction', textcoords='offset points', 
+                             color='gray', fontweight='bold', fontsize='10', horizontalalignment='left', verticalalignment='center')
+                
+                plt.tight_layout()
+                plt.savefig('Flags-idqc_'+str(varName) + '-' + str(varType)+'_'+ 'CH' + str(channel) + '_' +datefmt+'.png', 
+                            bbox_inches='tight', dpi=100)
+                    
+                
+                
+#                 exp    = "(nchan=="+str(channel)+") & (idqc==0.0)"
+#                 flag_0 = self[f].obsInfo[varName].loc[varType].query(exp)
+#                 exp    = "(nchan=="+str(channel)+") & (idqc==1.0)"
+#                 flag_1 = self[f].obsInfo[varName].loc[varType].query(exp)
+#                 exp    = "(nchan=="+str(channel)+") & (idqc==2.0)"
+#                 flag_2 = self[f].obsInfo[varName].loc[varType].query(exp)
+#                 exp    = "(nchan=="+str(channel)+") & (idqc==3.0)"
+#                 flag_3 = self[f].obsInfo[varName].loc[varType].query(exp)
+#                 exp    = "(nchan=="+str(channel)+") & (idqc==4.0)"
+#                 flag_4 = self[f].obsInfo[varName].loc[varType].query(exp)
+#                 exp    = "(nchan=="+str(channel)+") & (idqc==5.0)"
+#                 flag_5 = self[f].obsInfo[varName].loc[varType].query(exp)
+#                 exp    = "(nchan=="+str(channel)+") & (idqc==6.0)"
+#                 flag_6 = self[f].obsInfo[varName].loc[varType].query(exp)
+                
+#                 exp     = "(nchan=="+str(channel)+") & (idqc==7.0)"
+#                 flag_7  = self[f].obsInfo[varName].loc[varType].query(exp)
+#                 exp     = "(nchan=="+str(channel)+") & (idqc==8.0)"
+#                 flag_8  = self[f].obsInfo[varName].loc[varType].query(exp)
+#                 exp     = "(nchan=="+str(channel)+") & (idqc==9.0)"
+#                 flag_9  = self[f].obsInfo[varName].loc[varType].query(exp)
+#                 exp     = "(nchan=="+str(channel)+") & (idqc==10.0)"
+#                 flag_10 = self[f].obsInfo[varName].loc[varType].query(exp)
+#                 exp     = "(nchan=="+str(channel)+") & (idqc==50.0)"
+#                 flag_50 = self[f].obsInfo[varName].loc[varType].query(exp)
+#                 exp     = "(nchan=="+str(channel)+") & (idqc==51.0)"
+#                 flag_51 = self[f].obsInfo[varName].loc[varType].query(exp)
+                
+#                 soma_flags = 0.00000
+#                 soma_flags = len(flag_0) + len(flag_1) + len(flag_2) + len(flag_3) + len(flag_4) + len(flag_5) + len(flag_6) + len(flag_7) + len(flag_8) + len(flag_9) + len(flag_10) + len(flag_50) + len(flag_51)
+                
+#                 nf_0.append(len(flag_0))
+#                 nf_1.append(len(flag_1))
+#                 nf_2.append(len(flag_2))
+#                 nf_3.append(len(flag_3))
+#                 nf_4.append(len(flag_4))
+#                 nf_5.append(len(flag_5))
+#                 nf_6.append(len(flag_6))
+                
+#                 nf_7.append(len(flag_7))
+#                 nf_8.append(len(flag_8))
+#                 nf_9.append(len(flag_9))
+#                 nf_10.append(len(flag_10))
+#                 nf_50.append(len(flag_50))
+#                 nf_51.append(len(flag_51))
+                    
+#                 forplot = 'Channel ='+str(channel)+' | Total flags ='+str(soma_flags)
+                
+#                 # Radiance plots
+#                 if (figMap):
+#                     # Case: assimilated and rejected
+#                     #if ((len(assim)) != 0 or (len(rejei)) != 0):
+#                     df_list = [flag_0, flag_1, flag_2, flag_3, flag_4, flag_5, flag_6, flag_7, flag_8, flag_9, flag_10, flag_50, flag_51]    
+#                     name_list = ["flag 0 ["+str(len(flag_0))+"]","flag 1 ["+str(len(flag_1))+"]","flag 2 ["+str(len(flag_2))+"]",
+#                                  "flag 3 ["+str(len(flag_3))+"]","flag 4 ["+str(len(flag_4))+"]","flag 5 ["+str(len(flag_5))+"]",
+#                                  "flag 6 ["+str(len(flag_6))+"]","flag 7 ["+str(len(flag_7))+"]","flag 8 ["+str(len(flag_8))+"]",
+#                                  "flag 9 ["+str(len(flag_9))+"]","flag 10 ["+str(len(flag_10))+"]","flag 50 ["+str(len(flag_50))+"]",
+#                                  "flag 51 ["+str(len(flag_51))+"]"]
+# #                     marker_list = ["o","o","o","o","o","o","o","o","o","o","o","o","o"]    
+#                     color_list = ["green","navy","teal","deepskyblue","cyan","springgreen","lime","greenyellow","yellow","orange",
+#                                  "salmon","hotpink","red"]
+                    
+#                     setColor = 0 
+#                     legend_labels = []
+                    
+#                     fig = plt.figure(figsize=(12, 6))
+#                     ax  = fig.add_subplot(1, 1, 1)
+#                     ax = geoMap(area=None,ax=ax)
+# #                     for dfi,namedf,mk,cl in zip(df_list,name_list,marker_list,color_list):
+#                     for dfi,namedf,cl in zip(df_list,name_list,color_list):
+#                         df    = dfi
+#                         legend_labels.append(mpatches.Patch(color=cl, label=namedf) )
+# #                         ax = df.plot(ax=ax,legend=True, marker=mk, color=cl, **kwargs)
+#                         ax = df.plot(ax=ax,legend=True, marker="o", color=cl, **kwargs)
+#                         setColor += 1
+#                         plt.legend(handles=legend_labels, numpoints=1, loc='center left', bbox_to_anchor=(1.0, 0.5), 
+#                                    fancybox=True, shadow=False, frameon=False, ncol=1, prop={"size": 10})
+                        
+#                     date_title = str(date.strftime("%d%b%Y - %H%M")) + ' GMT'
+#                     plt.title(date_title, loc='right', fontsize=10)
+#                     plt.title(instrument_title, loc='left', fontsize=9)
+#                     plt.annotate(forplot, xy=(0.45, 1.015), xytext=(0, 0), xycoords='axes fraction', textcoords='offset points', 
+#                                  color='gray', fontweight='bold', fontsize='10', horizontalalignment='left', verticalalignment='center')
+                    
+#                     plt.tight_layout()
+#                     plt.savefig('Flags-idqc_'+str(varName) + '-' + str(varType)+'_'+ 'CH' + str(channel) + '_' +datefmt+'.png', 
+#                                 bbox_inches='tight', dpi=100)
+# #                     else:
+# #                        print("channel ",channel," not assimilated or rejected on the date -->",date.strftime("%Y-%m-%d:%H"))
+                    
+            except:
+                print("++++++++++++++++++++++++++ ERROR: file reading --> STATCOUNT ++++++++++++++++++++++++++")
+                print(setcolor.WARNING + "    >>> No information on this date (" + str(date.strftime("%Y-%m-%d:%H")) +") <<< " + setcolor.ENDC)
+#                 if(channel == None):
+#                     assi.append(None)
+#                     moni.append(None)
+#                     reje.append(None)
+#                 else:
+#                     assi.append(None)
+#                     moniAssi.append(None)
+#                     moniReje.append(None)
+#                     reje.append(None)
+                    
+            f = f + 1
+            date = date + timedelta(hours=int(nHour))
+            date_finale = date
+            
+
+
+#         if (figTS):
+#             if(channel == None):   # Conventional
+#                 if(len(DayHour_tmp) > 4):
+#                     DayHour = [hr if (ix % int(len(DayHour_tmp) / 4)) == 0 else '' for ix, hr in enumerate(DayHour_tmp)]
+#                 else:
+#                     DayHour = DayHour_tmp
+                
+#                 x_axis      = np.arange(0, len(DayHour), 1)
+#                 date_title = str(datei.strftime("%d%b")) + '-' + str(date_finale.strftime("%d%b")) + ' ' + str(date_finale.strftime("%Y"))
+            
+#                 fig = plt.figure(figsize=(6, 4))
+#                 fig, ax1 = plt.subplots(1, 1)
+#                 plt.style.use('seaborn-v0_8-ticks')
+
+#                 plt.axhline(y=0.0,ls='solid',c='#d3d3d3')
+
+#                 ax1.plot(x_axis, assi, "o", label="Assimilated \n["+str(sum(assi))+"]", color='green')
+#                 ax1.plot(x_axis, moni, "o", label="Monitored \n["+str(sum(moni))+"]", color='blue')
+#                 ax1.plot(x_axis, reje, "o", label="Rejected \n["+str(sum(reje))+"]", color='red')
+#                 ax1.legend(fancybox=True, frameon=True, shadow=True, loc="upper center",ncol=3)
+#                 ax1.set_xlabel('Date (DayHour)', fontsize=10)
+#                 plt.title(date_title, loc='right', fontsize=10)
+#                 plt.title(instrument_title, loc='left', fontsize=9)
+                
+#                 ax1.set_ylim(np.round(-0.05*np.max([assi,moni,reje])), np.round(1.25*np.max([assi,moni,reje])))
+#                 ax1.set_ylabel('Total Observations', color='black', fontsize=10)
+#                 ax1.tick_params('y', colors='black')
+#                 plt.xticks(x_axis, DayHour)
+#                 major_ticks = [ DayHour.index(dh) for dh in filter(None,DayHour) ]
+#                 ax1.set_xticks(major_ticks)
+#                 plt.axhline(y=np.mean(assi),ls='dotted',c='lightgray')
+#                 plt.axhline(y=np.mean(moni),ls='dotted',c='lightgray')
+#                 plt.axhline(y=np.mean(reje),ls='dotted',c='lightgray')
+#                 plt.tight_layout()
+#                 plt.savefig('time_series_'+str(varName) + '-' + str(varType)+'_TotalObs.png', bbox_inches='tight', dpi=100)
+                
+#             else:   # Radiance
+#                 if(len(DayHour_tmp) > 4):
+#                     DayHour = [hr if (ix % int(len(DayHour_tmp) / 4)) == 0 else '' for ix, hr in enumerate(DayHour_tmp)]
+#                 else:
+#                     DayHour = DayHour_tmp
+                
+#                 x_axis      = np.arange(0, len(DayHour), 1)
+#                 date_title = str(datei.strftime("%d%b")) + '-' + str(date_finale.strftime("%d%b")) + ' ' + str(date_finale.strftime("%Y"))
+            
+#                 fig = plt.figure(figsize=(6, 4))
+#                 fig, ax1 = plt.subplots(1, 1)
+#                 plt.style.use('seaborn-v0_8-ticks')
+
+#                 plt.axhline(y=0.0,ls='solid',c='#d3d3d3')
+                
+#                 # List with value None: is removed to calculate sum, max and min
+#                 # The lists below are only used to define the scale of the axes and the total sum of assi/rejei/monit data
+#                 assif     = [x for x in assi if x != None]
+#                 moniAssif = [x for x in moniAssi if x != None]
+#                 moniRejef = [x for x in moniReje if x != None]
+#                 rejef     = [x for x in reje if x != None]
+
+#                 ax1.plot(x_axis, assi, "o", label="Assimilated \n["+str(sum(assif))+"]", color='green')
+#                 ax1.plot(x_axis, moniAssi, "o", label="Monitored-Assim \n["+str(sum(moniAssif))+"]", color='teal')
+#                 ax1.plot(x_axis, moniReje, "o", label="Monitored-Rejei \n["+str(sum(moniRejef))+"]", color='purple')
+#                 ax1.plot(x_axis, reje, "o", label="Rejected \n["+str(sum(rejef))+"]", color='red')
+#                 ax1.legend(fancybox=True, frameon=True, shadow=True, loc="best",ncol=1)
+#                 ax1.set_xlabel('Date (DayHour)', fontsize=10)
+#                 plt.title(date_title, loc='right', fontsize=10)
+#                 plt.title(instrument_title, loc='left', fontsize=9)
+#                 plt.annotate(forplot, xy=(0.0, 0.965), xytext=(0, 0), xycoords='axes fraction', textcoords='offset points', 
+#                              color='lightgray', fontweight='bold', fontsize='12', horizontalalignment='left', verticalalignment='center')
+                
+#                 ax1.set_ylim(np.round(-0.05*np.max([assif,moniAssif,moniRejef,rejef])),
+#                              np.round(1.25*np.max([assif,moniAssif,moniRejef,rejef])))
+#                 ax1.set_ylabel('Total Observations', color='black', fontsize=10)
+#                 ax1.tick_params('y', colors='black')
+#                 plt.xticks(x_axis, DayHour)
+#                 major_ticks = [ DayHour.index(dh) for dh in filter(None,DayHour) ]
+#                 ax1.set_xticks(major_ticks)
+#                 plt.axhline(y=np.mean(assif),ls='dotted',c='lightgray')
+#                 plt.axhline(y=np.mean(moniAssif),ls='dotted',c='lightgray')
+#                 plt.axhline(y=np.mean(moniRejef),ls='dotted',c='lightgray')
+#                 plt.axhline(y=np.mean(rejef),ls='dotted',c='lightgray')
+#                 plt.tight_layout()
+#                 plt.savefig('time_series_'+str(varName) + '-' + str(varType) +'_'+ 'CH' + str(channel) + '_'+'_TotalObs.png',
+#                             bbox_inches='tight', dpi=100)
+
+                
+                
+                
+
 #EOC
 #-----------------------------------------------------------------------------#
 
