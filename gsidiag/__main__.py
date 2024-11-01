@@ -40,6 +40,7 @@ from textwrap import wrap
 import matplotlib as mpl
 import matplotlib.ticker as mticker
 from matplotlib.offsetbox import AnchoredOffsetbox, TextArea, HPacker, VPacker
+import re
 
 def help():
     print('Esta é uma ajudada')
@@ -546,6 +547,888 @@ class read_diag(object):
         print(" Done \n")
 
         return
+
+# #-------------- Nova função: ler arquivo fort.220 --------------------#
+    def fort_220_cost_gradient(DIRdiag, dates):
+        """ 
+        read files fort.220 from gsi. Return an list of tables with convergence information of the minimization process.
+        
+        1. The values of cost function:
+        
+        -> Jb: background term;          -> Jc: dry pressure constraint term;
+        -> Jo: observations term;        -> Jl: negative and excess moisture term.
+        
+        2. The value of the cost function and norm of the gradient:
+        
+        -> cost: the cost function values;
+        -> grad: inner product of gradients (norm of the gradient (Y*X));
+        -> step: stepsize;
+        -> b: parameter to estimate the new search direction
+        
+        This function return a list of the tables for first e second outer loops.
+        The columns identify flags and lines identify inner loop.
+        
+        """
+        
+        print('DIRdiag = ',DIRdiag)
+        print('')
+        
+        
+        names_columns = ['InnerLoop', 'Jb', 'Jo', 'Jc', 'Jl', 'cost', 'grad', 'step', 'b', 'step?']
+        
+        print('Names columns = ',names_columns)
+        print('')
+        
+        pathsf, self = [], []
+        [pathsf.append(DIRdiag + '/' + dt + '/fort.220') for dt in dates]
+        
+        print(pathsf)
+        print('')
+        
+        tidx = 0
+        for path in pathsf:
+            print('Reading ' + path)
+            print('')
+            
+            date = datetime.strptime(str(dates[tidx]), "%Y%m%d%H")
+            print(date.strftime(' Preparing data for: fort.220 ---> ' + "%Y-%m-%d:%H"))
+            print('')
+            
+            with open(path, "r") as file:
+                lines = file.readlines()
+                
+                List_data = []
+                MinItera  = []
+                data1 = []
+                
+                for line in lines:
+                    
+                    #---------------- Iterations -----------------#
+                    if re.search('Minimization iteration', line):
+                        #print('Passou 0')
+                        itera = None
+                        itera = line
+                        itera = re.findall(r'\d+', itera)
+                        #print(itera)
+                        
+                        MinItera.append(int(itera[0]))
+                        inner = int(itera[0])
+                    
+                    #---------------- costterms -----------------#
+                    if re.search('costterms Jb,Jo,Jc,Jl  =', line):
+                        #print('Passou 1')
+                        data1 = []
+                        data1 = line
+                        data1 = re.findall(r'[-+]?\d+\.\d+\D+\d+', data1)
+                        #print(data1)
+                        
+                        for lv in range(0,len(data1),1):
+                            data1[lv] = float(data1[lv])
+                            
+                    #else:
+                    #    data1 = []
+                        
+                        
+                    #---------------- cost,grad,step,b,step? -----------------#
+                    if re.search('cost,grad,step,b,step', line):
+                        #print('Passou 2')
+                        data2 = []
+                        data2 = line
+                        data2 = re.findall(r'[-+]?\d+\.\d+\D+\d+', data2)
+                        #print(data2)
+                        if re.search('good', line):
+                            aux2 = 'good'
+                        else:
+                            aux2 = None   ## Verificar ????!!!
+                            
+                        for lv in range(0,len(data2),1):
+                            data2[lv] = float(data2[lv])
+                            
+                        #if (len(data1)>0 and len(data2)>0):
+                        if (len(data1)>0 or len(data2)>0):
+                            data = []
+                            if len(data1) > 0:
+                                data = data1
+                            else:
+                                data = [None, None, None, None]
+                                
+                            for lv in data2:
+                                data.append(lv)
+                        
+                            data.append(aux2)    # inserted the word good in finish position
+                            data.insert(0,inner) # inserted the minimization iteration (InnerLoop) in begging position
+                        
+                            List_data.append(data)
+                        
+                        else:
+                            print("++++++++++++++++++++++++++ ERROR: file reading --> fort_220_cost_gradient ++++++++++++++++++++++++++")
+                            print(setcolor.WARNING + "    >>> No information on this date (" + str(date.strftime("%Y-%m-%d:%H")) +") <<< " + setcolor.ENDC)
+                        
+                
+            file.close()
+            print('')
+            
+            #print('MinItera =',MinItera)
+            #print('')
+            
+            InnerLoop1, InnerLoop2 = [], []
+            #it = 0
+            for it in range(0, len(MinItera), 1):
+                if MinItera[it] > MinItera[it+1]:
+                    InnerLoop1.append(MinItera[it])
+                    break
+                else:
+                    InnerLoop1.append(MinItera[it])
+            
+            #if it+1 == len(InnerLoop1):
+            InnerLoop2 = MinItera[it+1:]
+            
+            #print('InnerLoop1 =', InnerLoop1)
+            #print('')
+            
+            #print('InnerLoop2 =', InnerLoop2)
+            #print('')
+            
+            
+            index1 = InnerLoop1
+            index2 = InnerLoop2
+            # print('index = ',index)
+            # print('')
+            
+            nloop_1 = InnerLoop1[-1]
+            
+            df1 = pd.DataFrame(List_data[0:nloop_1+1], columns=names_columns, index=index1)
+            df2 = pd.DataFrame(List_data[nloop_1+1:], columns=names_columns, index=index2)
+            
+            self.append([df1, df2])
+            tidx = tidx + 1
+            
+            
+        return self
+    
+
+# #-------------- Nova função: ler arquivo fort.220 --------------------#
+    def fort_220_Flags_V3_4(DIRdiag, dates):
+        """ 
+        read files fort.220 from gsi. Return an list of tables with detailed convergence information of the minimization process.
+        
+        1. Labels detailed:
+        
+        -> J: cost function;                       ->  c: c term for estimate stepsize;
+        -> b: b term for estimate stepsize;        -> EJ: estimate terms in penalty.
+        
+        
+        ! Contributions to penalty for various terms.
+        !
+        ! Linear terms:
+        !
+        !  Flag | Observation types
+        !  +----+-----------------------------------------------------------
+        !    1  | contribution from background, sat rad bias, and precip bias
+        !    2  | placeholder for future linear linear term
+        !    3  | contribution from dry pressure constraint term (Jc)
+        !
+        ! Nonlinear terms:
+        !
+        !  Flag | Observation types
+        !  +----+-----------------------------------------------------------
+        !    4  | contribution from negative moisture constraint term (Jl/Jq)
+        !    5  | contribution from excess moisture term (Jl/Jq)
+        !    6  | contribution from negative gust constraint term (Jo)
+        !    7  | contribution from negative vis constraint term (Jo)
+        !    8  | contribution from negative pblh constraint term (Jo)
+        !
+        !-----------------------------------------------------------------------------------------------------------------------
+        ! The list below is different from the list in the Advanced User's guide version 3.4
+        !-----------------------------------------------------------------------------------------------------------------------
+        !
+        ! The list below is new information addeded in addition to the list described in the Advanced User's guide version 3.4
+        !
+        !  Flag | Observation types
+        !  +----+-----------------------------------------------------------
+        !    9  | contribution from negative wspd10m constraint term (Jo)
+        !    10 | contribution from negative howv constraint term (Jo)
+        !    11 | contribution from negative lcbas constraint term (Jo)
+        !
+        !------------------------------------------------------------------------------------------
+        !
+        ! The list below reffers to the list from 9-32 of the Advanced User's guide version 3.4
+        !
+        !  Flag | Observation types                                       |Flag | Observation types
+        !  +----+---------------------------------------------------------+-----+-----------------------------------------------
+        !    12 | contribution from ps observation  term (Jo)             |  25 | contribution from gps observation  term (Jo)
+        !    13 | contribution from t observation  term (Jo)              |  26 | contribution from rad observation  term (Jo)
+        !    14 | contribution from w observation  term (Jo)              |  27 | contribution from tcp observation  term (Jo)
+        !    15 | contribution from q observation  term (Jo)              |  28 | contribution from lag observation  term (Jo)
+        !    16 | contribution from spd observation  term (Jo)            |  29 | contribution from colvk observation  term (Jo)
+        !    17 | contribution from srw observation  term (Jo)            |  30 | contribution from aero observation  term (Jo)
+        !    18 | contribution from rw observation  term (Jo)             |  31 | contribution from aerol observation  term (Jo)
+        !    19 | contribution from dw observation  term (Jo)             |  32 | contribution from pm2_5 observation  term (Jo)
+        !    20 | contribution from sst observation  term (Jo)            |  33 | contribution from gust observation  term (Jo)
+        !    21 | contribution from pw observation  term (Jo)             |  34 | contribution from vis observation  term (Jo)
+        !    22 | contribution from pcp observation  term (Jo)            |  35 | contribution from pblh observation  term (Jo)
+        !    23 | contribution from oz observation  term (Jo)             |
+        !    24 | contribution from o3l observation  term (Jo)(not used)  |
+        !
+        !-----------------------------------------------------------------------------------------
+        ! The list below is new information addeded in addition to the list described in the Advanced User's guide version 3.4
+        !
+        !  Flag | Observation types                                       |Flag | Observation types
+        !  +----+---------------------------------------------------------+-----+-----------------------------------------------
+        !    36 | contribution from wspd10m observation  term (Jo)        |  40 | contribution from pmsl observation  term (Jo)
+        !    37 | contribution from td2m observation  term (Jo)           |  41 | contribution from howv observation  term (Jo)
+        !    38 | contribution from mxtm observation  term (Jo)           |  42 | contribution from tcamt observation  term (Jo)
+        !    39 | contribution from mitm observation  term (Jo)           |  43 | contribution from lcbas observation  term (Jo)
+        !
+
+        
+        This function return a list of the tables for first e second outer loops. 
+        The columns identify flags and lines identify the tuples (inner loop, labels).
+        
+        """
+        
+        print('DIRdiag = ',DIRdiag)
+        print('')
+        
+        
+        Labels = ['J', 'b', 'c', 'EJ']
+        temp_Labels = [None, None, None, None]
+        flags =[]
+        n_flag = 43 #56   # Qntdd de flags
+        Li = 15 #19       # Para uma iteração e label: qntdd de linhas sequenciais com as valores de contribuicao de cada flag
+        [flags.append(str(i)) for i in range(1,n_flag+1,1)]
+        
+        print('Labels = ',Labels)
+        print('')
+        
+        print('Flags = ',flags)
+        print('')
+        
+        flags.insert(0,'InnerLoop') # inserted inner loop in first column
+        print('Columns: ', flags)
+        print('')
+        
+        pathsf, self = [], []
+        [pathsf.append(DIRdiag + '/' + dt + '/fort.220') for dt in dates]
+        
+        print(pathsf)
+        print('')
+        
+        tidx = 0
+        for path in pathsf:
+            print('Reading ' + path)
+            print('')
+            
+            date = datetime.strptime(str(dates[tidx]), "%Y%m%d%H")
+            print(date.strftime(' Preparing data for: fort.220 ---> ' + "%Y-%m-%d:%H"))
+            print('')
+            
+            with open(path, "r") as file:
+                
+                lines = file.readlines()
+                nlines = len(lines)
+                
+                print('Nº total de linhas =', nlines)
+                
+                List_data = []
+                MinItera  = []
+                
+                nl = 0
+                while ( nl < nlines ):
+                    line = lines[nl]
+                    
+                    #---------------- Iterations -----------------#
+                    if re.search('Minimization iteration', line):
+                        #print('Passou 0')
+                        itera = None
+                        itera = line
+                        itera = re.findall(r'\d+', itera)
+                        #print(itera)
+                        
+                        MinItera.append(int(itera[0]))
+                        inner = int(itera[0])
+                    
+                    #---------------- Label J -----------------#
+                    if re.search(' J=', line):
+                        data = []
+                        data = line
+                        data = re.findall(r'[-+]?\d+\.\d+\D+\d+', data)
+                        for ll in range(1,Li,1):
+                            aux = lines[lines.index(line) + ll]
+                            aux = re.findall(r'[-+]?\d+\.\d+\D+\d+', aux)
+                            [data.append(i) for i in aux]
+                        
+                        for lv in range(0,len(data),1):
+                            data[lv] = float(data[lv])
+                            
+                        
+                        if (len(data)>n_flag):
+                            print('len data J =', len(data), 'index line =', lines.index(line))
+                            print('data J =',data)
+                            print('')
+                        
+                        data.insert(0,inner) # inserted the minimization iteration (InnerLoop) in begging position
+                        List_data.append(data)
+                        temp_Labels[0] = 'J'
+                        
+                        # para encontrar b soma 15 linhas (as matrizes são escritas em sequências de 15 linhas)
+                        nl = nl + Li
+                        line = lines[nl]
+                        
+                    #---------------- Label b -----------------#
+                    if ( re.search('b=', line) and re.search(' J=', lines[nl-Li]) ):
+                        data = []
+                        data = line
+                        data = re.findall(r'[-+]?\d+\.\d+\D+\d+', data)
+                        for ll in range(1,Li,1):
+                            aux = lines[lines.index(line) + ll]
+                            aux = re.findall(r'[-+]?\d+\.\d+\D+\d+', aux)
+                            [data.append(i) for i in aux]
+                            
+                        for lv in range(0,len(data),1):
+                            data[lv] = float(data[lv])
+                            
+                        
+                        if (len(data)>n_flag):
+                            print('len data b =', len(data), 'index line =', lines.index(line))
+                            print('data b =',data)
+                            print('')
+                            
+                        data.insert(0,inner) # inserted the minimization iteration (InnerLoop) in begging position
+                        List_data.append(data)
+                        temp_Labels[1] = 'b'
+                        
+                        nl = nl + Li
+                        line = lines[nl]
+                        
+                    #---------------- Label c -----------------#
+                    if re.search('c=', line):
+                        data = []
+                        data = line
+                        data = re.findall(r'[-+]?\d+\.\d+\D+\d+', data)
+                        for ll in range(1,Li,1):
+                            aux = lines[lines.index(line) + ll]
+                            aux = re.findall(r'[-+]?\d+\.\d+\D+\d+', aux)
+                            [data.append(i) for i in aux]
+                            
+                        for lv in range(0,len(data),1):
+                            data[lv] = float(data[lv])
+                            
+                        
+                        if (len(data)>n_flag):
+                            print('len data c =', len(data), 'index line =', lines.index(line))
+                            print('data c =',data)
+                            print('')
+                            
+                        data.insert(0,inner) # inserted the minimization iteration (InnerLoop) in begging position
+                        List_data.append(data)
+                        temp_Labels[2] = 'c'
+                        
+                        nl = nl + Li
+                        line = lines[nl]
+                        
+                    #---------------- Label EJ -----------------#
+                    if re.search('EJ=', line):
+                        data = []
+                        data = line
+                        data = re.findall(r'[-+]?\d+\.\d+\D+\d+', data)
+                        for ll in range(1,Li,1):
+                            aux = lines[lines.index(line) + ll]
+                            aux = re.findall(r'[-+]?\d+\.\d+\D+\d+', aux)
+                            [data.append(i) for i in aux]
+                            
+                        for lv in range(0,len(data),1):
+                            data[lv] = float(data[lv])
+                            
+                        
+                        if (len(data)>n_flag):
+                            print('len data EJ =', len(data), 'index line =', lines.index(line))
+                            print('data EJ =',data)
+                            print('')
+                            
+                        data.insert(0,inner) # inserted the minimization iteration (InnerLoop) in begging position
+                        List_data.append(data)
+                        temp_Labels[3] = ('EJ')
+                        
+                        nl = nl + Li
+                        line = lines[nl]
+                    
+                    # próxima linha
+                    nl = nl + 1
+                    
+                print('nl final =', nl)
+            
+            file.close()
+            print('')
+            
+            #print('MinItera =',MinItera)
+            #print('')
+            
+            InnerLoop1, InnerLoop2 = [], []
+            #it = 0
+            for it in range(0, len(MinItera), 1):
+                if MinItera[it] > MinItera[it+1]:
+                    InnerLoop1.append(MinItera[it])
+                    break
+                else:
+                    InnerLoop1.append(MinItera[it])
+            
+            #if it+1 == len(InnerLoop1):
+            InnerLoop2 = MinItera[it+1:]
+            
+            #print('InnerLoop1 =', InnerLoop1)
+            #print('')
+            
+            #print('InnerLoop2 =', InnerLoop2)
+            #print('')
+            
+            check_Labels = []
+            [check_Labels.append(x) for x in Labels if x in temp_Labels]
+            
+            tuples1 = [(Il, lb) for Il in InnerLoop1 for lb in Labels if lb in temp_Labels ]
+            tuples2 = [(Il, lb) for Il in InnerLoop2 for lb in Labels if lb in temp_Labels ]
+            # print('tuples = ',tuples)
+            # print('')
+            
+            index1 = pd.MultiIndex.from_tuples(tuples1,names=['Inner loop', 'Label'])
+            index2 = pd.MultiIndex.from_tuples(tuples2,names=['Inner loop', 'Label'])
+            # print('index = ',index)
+            # print('')
+            
+            
+            nloop_1 = InnerLoop1[-1]
+            nlabels = len(check_Labels)
+            
+            df1 = pd.DataFrame(List_data[0:nlabels*(nloop_1+1)], columns=flags, index=index1)
+            df2 = pd.DataFrame(List_data[nlabels*(nloop_1+1):], columns=flags, index=index2)
+            
+            df1 = df1.rename_axis("Flags", axis="columns")
+            df2 = df2.rename_axis("Flags", axis="columns")
+            
+            self.append([df1, df2])
+            tidx = tidx + 1
+            
+            
+        return self
+    
+# #-------------- Nova função: ler arquivo fort.220 --------------------#
+    def fort_220_Flags_V3_7(DIRdiag, dates):
+        """ 
+        read files fort.220 from gsi. Return an list of tables with detailed convergence information of the minimization process.
+        
+        1. Labels detailed:
+        
+        -> J: cost function;                       ->  c: c term for estimate stepsize;
+        -> b: b term for estimate stepsize;        -> EJ: estimate terms in penalty.
+        
+        
+        ! Contributions to penalty for various terms.
+        !
+        ! Linear terms:
+        !
+        !  Flag | Observation types
+        !  +----+-----------------------------------------------------------
+        !    1  | contribution from background, sat rad bias, and precip bias
+        !    2  | placeholder for future linear linear term
+        !    3  | contribution from dry pressure constraint term (Jc)
+        !
+        ! Nonlinear terms:
+        !
+        !  Flag | Observation types
+        !  +----+-----------------------------------------------------------
+        !    4  | contribution from negative moisture constraint term (Jl/Jq)
+        !    5  | contribution from excess moisture term (Jl/Jq)
+        !    6  | contribution from negative gust constraint term (Jo)
+        !    7  | contribution from negative vis constraint term (Jo)
+        !    8  | contribution from negative pblh constraint term (Jo)
+        !
+        !-----------------------------------------------------------------------------------------------------------------------
+        ! The list below is different from the list in the Advanced User's guide version 3.4
+        !-----------------------------------------------------------------------------------------------------------------------
+        !
+        ! The list below is new information addeded in addition to the list described in the Advanced User's guide version 3.4
+        !
+        !  Flag | Observation types
+        !  +----+-----------------------------------------------------------
+        !    9  | contribution from negative wspd10m constraint term (Jo)
+        !    10 | contribution from negative howv constraint term (Jo)
+        !    11 | contribution from negative lcbas constraint term (Jo)
+        !
+        !------------------------------------------------------------------------------------------
+        !
+        ! The list below reffers to the list from 9-32 of the Advanced User's guide version 3.4
+        !
+        !  Flag | Observation types                                       |Flag | Observation types
+        !  +----+---------------------------------------------------------+-----+-----------------------------------------------
+        !    12 | contribution from ps observation  term (Jo)             |  25 | contribution from gps observation  term (Jo)
+        !    13 | contribution from t observation  term (Jo)              |  26 | contribution from rad observation  term (Jo)
+        !    14 | contribution from w observation  term (Jo)              |  27 | contribution from tcp observation  term (Jo)
+        !    15 | contribution from q observation  term (Jo)              |  28 | contribution from lag observation  term (Jo)
+        !    16 | contribution from spd observation  term (Jo)            |  29 | contribution from colvk observation  term (Jo)
+        !    17 | contribution from srw observation  term (Jo)            |  30 | contribution from aero observation  term (Jo)
+        !    18 | contribution from rw observation  term (Jo)             |  31 | contribution from aerol observation  term (Jo)
+        !    19 | contribution from dw observation  term (Jo)             |  32 | contribution from pm2_5 observation  term (Jo)
+        !    20 | contribution from sst observation  term (Jo)            |  33 | contribution from gust observation  term (Jo)
+        !    21 | contribution from pw observation  term (Jo)             |  34 | contribution from vis observation  term (Jo)
+        !    22 | contribution from pcp observation  term (Jo)            |  35 | contribution from pblh observation  term (Jo)
+        !    23 | contribution from oz observation  term (Jo)             |
+        !    24 | contribution from o3l observation  term (Jo)(not used)  |
+        !
+        !-----------------------------------------------------------------------------------------
+        ! The list below is new information addeded in addition to the list described in the Advanced User's guide version 3.4
+        !
+        !  Flag | Observation types                                       |Flag | Observation types
+        !  +----+---------------------------------------------------------+-----+-----------------------------------------------
+        !    36 | contribution from wspd10m observation  term (Jo)        |  40 | contribution from pmsl observation  term (Jo)
+        !    37 | contribution from td2m observation  term (Jo)           |  41 | contribution from howv observation  term (Jo)
+        !    38 | contribution from mxtm observation  term (Jo)           |  42 | contribution from tcamt observation  term (Jo)
+        !    39 | contribution from mitm observation  term (Jo)           |  43 | contribution from lcbas observation  term (Jo)
+        !
+
+        
+        This function return a list of the tables for first e second outer loops. 
+        The columns identify flags and lines identify the tuples (inner loop, labels).
+        
+        """
+        
+        print('DIRdiag = ',DIRdiag)
+        print('')
+        
+        
+        Labels = ['J', 'b', 'c', 'EJ']
+        temp_Labels = [None, None, None, None]
+        flags =[]
+        n_flag = 56   # Qntdd de flags
+        Li = 19       # Para uma iteração e label: qntdd de linhas sequenciais com as valores de contribuicao de cada flag
+        [flags.append(str(i)) for i in range(1,n_flag+1,1)]
+        
+        print('Labels = ',Labels)
+        print('')
+        
+        print('Flags = ',flags)
+        print('')
+        
+        flags.insert(0,'InnerLoop') # inserted inner loop in first column
+        print('Columns: ', flags)
+        print('')
+        
+        pathsf, self = [], []
+        [pathsf.append(DIRdiag + '/' + dt + '/fort.220') for dt in dates]
+        
+        print(pathsf)
+        print('')
+        
+        tidx = 0
+        for path in pathsf:
+            print('Reading ' + path)
+            print('')
+            
+            date = datetime.strptime(str(dates[tidx]), "%Y%m%d%H")
+            print(date.strftime(' Preparing data for: fort.220 ---> ' + "%Y-%m-%d:%H"))
+            print('')
+            
+            with open(path, "r") as file:
+                
+                lines = file.readlines()
+                nlines = len(lines)
+                
+                print('Nº total de linhas =', nlines)
+                
+                List_data = []
+                MinItera  = []
+                
+                nl = 0
+                while ( nl < nlines ):
+                    line = lines[nl]
+                    
+                    #---------------- Iterations -----------------#
+                    if re.search('Minimization iteration', line):
+                        #print('Passou 0')
+                        itera = None
+                        itera = line
+                        itera = re.findall(r'\d+', itera)
+                        #print(itera)
+                        
+                        MinItera.append(int(itera[0]))
+                        inner = int(itera[0])
+                    
+                    #---------------- Label J -----------------#
+                    if re.search(' J=', line):
+                        data = []
+                        data = line
+                        data = re.findall(r'[-+]?\d+\.\d+\D+\d+', data)
+                        for ll in range(1,Li,1):
+                            aux = lines[lines.index(line) + ll]
+                            aux = re.findall(r'[-+]?\d+\.\d+\D+\d+', aux)
+                            [data.append(i) for i in aux]
+                        
+                        for lv in range(0,len(data),1):
+                            data[lv] = float(data[lv])
+                            
+                        
+                        if (len(data)>n_flag):
+                            print('len data J =', len(data), 'index line =', lines.index(line))
+                            print('data J =',data)
+                            print('')
+                        
+                        data.insert(0,inner) # inserted the minimization iteration (InnerLoop) in begging position
+                        List_data.append(data)
+                        temp_Labels[0] = 'J'
+                        
+                        # para encontrar b soma 15 linhas (as matrizes são escritas em sequências de 15 linhas)
+                        nl = nl + Li
+                        line = lines[nl]
+                        
+                    #---------------- Label b -----------------#
+                    if ( re.search('b=', line) and re.search(' J=', lines[nl-Li]) ):
+                        data = []
+                        data = line
+                        data = re.findall(r'[-+]?\d+\.\d+\D+\d+', data)
+                        for ll in range(1,Li,1):
+                            aux = lines[lines.index(line) + ll]
+                            aux = re.findall(r'[-+]?\d+\.\d+\D+\d+', aux)
+                            [data.append(i) for i in aux]
+                            
+                        for lv in range(0,len(data),1):
+                            data[lv] = float(data[lv])
+                            
+                        
+                        if (len(data)>n_flag):
+                            print('len data b =', len(data), 'index line =', lines.index(line))
+                            print('data b =',data)
+                            print('')
+                            
+                        data.insert(0,inner) # inserted the minimization iteration (InnerLoop) in begging position
+                        List_data.append(data)
+                        temp_Labels[1] = 'b'
+                        
+                        nl = nl + Li
+                        line = lines[nl]
+                        
+                    #---------------- Label c -----------------#
+                    if re.search('c=', line):
+                        data = []
+                        data = line
+                        data = re.findall(r'[-+]?\d+\.\d+\D+\d+', data)
+                        for ll in range(1,Li,1):
+                            aux = lines[lines.index(line) + ll]
+                            aux = re.findall(r'[-+]?\d+\.\d+\D+\d+', aux)
+                            [data.append(i) for i in aux]
+                            
+                        for lv in range(0,len(data),1):
+                            data[lv] = float(data[lv])
+                            
+                        
+                        if (len(data)>n_flag):
+                            print('len data c =', len(data), 'index line =', lines.index(line))
+                            print('data c =',data)
+                            print('')
+                            
+                        data.insert(0,inner) # inserted the minimization iteration (InnerLoop) in begging position
+                        List_data.append(data)
+                        temp_Labels[2] = 'c'
+                        
+                        nl = nl + Li
+                        line = lines[nl]
+                        
+                    #---------------- Label EJ -----------------#
+                    if re.search('EJ=', line):
+                        data = []
+                        data = line
+                        data = re.findall(r'[-+]?\d+\.\d+\D+\d+', data)
+                        for ll in range(1,Li,1):
+                            aux = lines[lines.index(line) + ll]
+                            aux = re.findall(r'[-+]?\d+\.\d+\D+\d+', aux)
+                            [data.append(i) for i in aux]
+                            
+                        for lv in range(0,len(data),1):
+                            data[lv] = float(data[lv])
+                            
+                        
+                        if (len(data)>n_flag):
+                            print('len data EJ =', len(data), 'index line =', lines.index(line))
+                            print('data EJ =',data)
+                            print('')
+                            
+                        data.insert(0,inner) # inserted the minimization iteration (InnerLoop) in begging position
+                        List_data.append(data)
+                        temp_Labels[3] = ('EJ')
+                        
+                        nl = nl + Li
+                        line = lines[nl]
+                    
+                    # próxima linha
+                    nl = nl + 1
+                    
+                print('nl final =', nl)
+            
+            file.close()
+            print('')
+            
+            #print('MinItera =',MinItera)
+            #print('')
+            
+            InnerLoop1, InnerLoop2 = [], []
+            #it = 0
+            for it in range(0, len(MinItera), 1):
+                if MinItera[it] > MinItera[it+1]:
+                    InnerLoop1.append(MinItera[it])
+                    break
+                else:
+                    InnerLoop1.append(MinItera[it])
+            
+            #if it+1 == len(InnerLoop1):
+            InnerLoop2 = MinItera[it+1:]
+            
+            #print('InnerLoop1 =', InnerLoop1)
+            #print('')
+            
+            #print('InnerLoop2 =', InnerLoop2)
+            #print('')
+            
+            check_Labels = []
+            [check_Labels.append(x) for x in Labels if x in temp_Labels]
+            
+            tuples1 = [(Il, lb) for Il in InnerLoop1 for lb in Labels if lb in temp_Labels ]
+            tuples2 = [(Il, lb) for Il in InnerLoop2 for lb in Labels if lb in temp_Labels ]
+            # print('tuples = ',tuples)
+            # print('')
+            
+            index1 = pd.MultiIndex.from_tuples(tuples1,names=['Inner loop', 'Label'])
+            index2 = pd.MultiIndex.from_tuples(tuples2,names=['Inner loop', 'Label'])
+            # print('index = ',index)
+            # print('')
+            
+            
+            nloop_1 = InnerLoop1[-1]
+            nlabels = len(check_Labels)
+            
+            df1 = pd.DataFrame(List_data[0:nlabels*(nloop_1+1)], columns=flags, index=index1)
+            df2 = pd.DataFrame(List_data[nlabels*(nloop_1+1):], columns=flags, index=index2)
+            
+            df1 = df1.rename_axis("Flags", axis="columns")
+            df2 = df2.rename_axis("Flags", axis="columns")
+            
+            self.append([df1, df2])
+            tidx = tidx + 1
+            
+            
+        return self
+    
+    
+    
+# #-------------- Nova função: ler arquivo fort.207 --------------------#
+    def fort_207_statistics(DIRdiag, dates):
+        """ 
+        read files fort.220 from gsi. Return an list of tables with convergence information of the minimization process.
+        
+        1. The values of cost function:
+        
+        -> Jb: background term;          -> Jc: dry pressure constraint term;
+        -> Jo: observations term;        -> Jl: negative and excess moisture term.
+        
+        2. The value of the cost function and norm of the gradient:
+        
+        -> cost: the cost function values;
+        -> grad: inner product of gradients (norm of the gradient (Y*X));
+        -> step: stepsize;
+        -> b: parameter to estimate the new search direction
+        
+        This function return a list of the tables for first e second outer loops.
+        The columns identify flags and lines identify inner loop.
+        
+        """
+        
+        print('DIRdiag = ',DIRdiag)
+        print('')
+        
+        names_columns = ['it', 'sat', 'type', 'penalty', 'nobs', 'iland', 'isnoice', 'icoast', 'ireduce', 'ivarl', 'nlgross', 'qcpenalty', 'qc1', 'qc2', 'qc3', 'qc4', 'qc5', 'qc6', 'qc7']
+        
+        print('Names columns = ',names_columns)
+        print('')
+        
+        pathsf, self = [], []
+        [pathsf.append(DIRdiag + '/' + dt + '/fort.207') for dt in dates]
+        
+        print(pathsf)
+        print('')
+        
+        tidx = 0
+        for path in pathsf:
+            print('Reading ' + path)
+            print('')
+            
+            date = datetime.strptime(str(dates[tidx]), "%Y%m%d%H")
+            print(date.strftime(' Preparing data for: fort.207 ---> ' + "%Y-%m-%d:%H"))
+            print('')
+            
+            with open(path, "r") as file:
+                
+                lines = file.readlines()
+                nlines = len(lines)
+                
+                print('Nº total de linhas =', nlines)
+                
+                List_data = []
+                MinItera  = []
+                
+                ll = 1
+                it = ll
+                #it = 'o-g 0'+str(ll)+' rad'
+                
+                nl = 0
+                while ( nl < nlines ):
+                    line = lines[nl]
+                    
+                    #---------------- Label J -----------------#
+                    if re.search('sat       type              penalty    nobs   iland isnoice  icoast ireduce   ivarl nlgross', line):
+                        nl = nl + 1
+                        data = []
+                        data = lines[nl]
+                        data = data.split()
+                        data[2] = float(data[2])  # penalty is float
+                        for lv in range(3,len(data),1):
+                            aux = data[lv]
+                            data[lv] = int(aux)
+                        nl = nl + 1
+                        line = lines[nl]
+                        if re.search('                            qcpenalty     qc1     qc2     qc3     qc4     qc5     qc6     qc7', line):
+                            nl = nl + 1
+                            data2 = []
+                            data2 = lines[nl]
+                            data2 = data2.split()
+                            data.append(float(data2[0]))  # qcpenalty is float
+                            for lv in range(1,len(data2),1):
+                                aux = data2[lv]
+                                data.append(int(aux))
+                        
+                        data.insert(0,it) # inserted the stage number
+                        List_data.append(data)
+                        nl = nl + 2
+                        lineTest = lines[nl + 1]
+                        if re.search('  rad total   penalty_all=', lineTest):
+                            ll += 1
+                            it = ll
+                            #it = 'o-g 0'+str(ll)+' rad'
+                    
+                    # próxima linha
+                    nl = nl + 1
+                    
+                print('nl final =', nl)
+            
+            file.close()
+            print('')
+            
+            df = pd.DataFrame(List_data, columns=names_columns)
+            
+            
+            self.append(df)
+            tidx = tidx + 1
+
+            
+            
+        return self
+    
 
 
 class plot_diag(object):
@@ -1584,8 +2467,8 @@ class plot_diag(object):
         vmaxOMA = 4.0         # Y-axis Maximum Value for OmF or OmA
         vminSTD = 0.0         # Y-axis Minimum Value for Standard Deviation
         vmaxSTD = 14.0        # Y-axis Maximum Value for Standard Deviation
-        channel = 1           # Time Series channel, if any (None), all nchan are plotted 
-
+        channel = 1           # Time Series channel, if any (None), all nchan are plotted
+        
         '''
         if Clean == None:
             Clean = True
@@ -2518,7 +3401,7 @@ class plot_diag(object):
 
 
 
-# Avaliação idq radiancia
+# Avaliação idqc radiancia
     def statcount_idqc(self, varName=None, varType=None, dateIni=None, dateFin=None, nHour="06", channel=None, figTS=False, figMap=False, **kwargs):
 
         '''
@@ -2574,25 +3457,9 @@ class plot_diag(object):
         datef = datetime.strptime(str(dateFin), "%Y%m%d%H")
         date  = datei
 
-        flags, aux0 = [], []
         nf = {}
-        
+        List_flags = []
         DayHour_tmp = []
-        
-        if varName == 'amsua':
-            #flags = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 50, 51]
-            aux0 = list(map(round,self[0].obsInfo[varName].query("nchan=="+str(channel)).loc[varType].idqc))
-            flags = pd.unique(aux0)
-            flags.sort()
-        elif varName == 'hirs4':
-            #flags = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 50, 51]
-            aux0 = list(map(round,self[0].obsInfo[varName].query("nchan=="+str(channel)).loc[varType].idqc))
-            flags = pd.unique(aux0)
-            flags.sort()
-        else:
-            print(setcolor.WARNING + "    >>> Flags for sensor " + varName + " not set <<< " + setcolor.ENDC)
-                    
-        [nf.update({int(i): []}) for i in flags]
         
         f = 0
         while (date <= datef):
@@ -2600,23 +3467,39 @@ class plot_diag(object):
             datefmt = date.strftime("%Y%m%d%H")
             DayHour_tmp.append(date.strftime("%d%H"))
             
-#             list_flags, name_list = {}, {}
-#             [ list_flags.update({int(i): []}) for i in flags ]
-#             [ name_list.update({int(i): []}) for i in flags ]
-#             print('list_flags = ', list_flags)
-#             print('name_list = ', name_list)
-            
             
             # try: For issues reading the file (file not found)
             # in the except statement an error message is printed and continues for other dates
             try:
                 
+                flags, aux0 = [], []
+                
+                if varName == 'amsua':
+                    #flags = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 50, 51]
+                    aux0 = list(map(round,self[f].obsInfo[varName].query("nchan=="+str(channel)).loc[varType].idqc))
+                    flags = pd.unique(aux0)
+                    flags.sort()
+                elif varName == 'hirs4':
+                    #flags = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 50, 51, 52, 53]
+                    aux0 = list(map(int,self[f].obsInfo[varName].query("nchan=="+str(channel)).loc[varType].idqc))
+                    flags = pd.unique(aux0)
+                    flags.sort()
+                    print('flags = ', flags)
+                else:
+                    print(setcolor.WARNING + "    >>> Flags for sensor " + varName + " not set <<< " + setcolor.ENDC)
+                    
+                #[nf.update({int(i): []}) for i in flags]
+                if len(flags) > 0:
+                    List_flags.append(flags)
+                
+                
                 soma_flags = 0
                 setColor = 0 
                 legend_labels = []
-                fig = plt.figure(figsize=(12, 6))
-                ax  = fig.add_subplot(1, 1, 1)
-                ax = geoMap(area=None,ax=ax)
+                if (figMap):
+                    fig = plt.figure(figsize=(12, 6))
+                    ax  = fig.add_subplot(1, 1, 1)
+                    ax = geoMap(area=None,ax=ax)
                 
                 for ll in range(len(flags)):
                     fl = flags[ll]
@@ -2629,6 +3512,9 @@ class plot_diag(object):
                     #---------------- lista com os dados da flag ------------#
                     aux1 = self[f].obsInfo[varName].loc[varType].query(exp)
                     
+                    #if (fl == 4):
+                    #    print('aux1 =', aux1)
+                    
                     #---------------- cria lista da serie temp da qntdd de dados da flag ------------#
                     #nf[int(fl)].append(len(aux1))
                     #print('nf = ', nf)                    
@@ -2638,7 +3524,7 @@ class plot_diag(object):
                         soma_flags = soma_flags + len(aux1)
                     
                     #---------------- Comandos de plote ------------#
-                    if ( len(aux1) > 0 ):
+                    if ( len(aux1) > 0 and figMap == True ):
                         label = "flag "+str(fl)+" ["+str(len(aux1))+"]"
                         #color = getColor(minVal=0, maxVal=len(flags)-1, 
                         #                 value=fl,hex=True,cmapName='Paired')
@@ -2652,12 +3538,9 @@ class plot_diag(object):
                         plt.legend(handles=legend_labels, numpoints=1, loc='center left', bbox_to_anchor=(1.0, 0.5), 
                                    fancybox=True, shadow=False, frameon=False, ncol=1, prop={"size": 10})
                     
-                #---------------- FIM for --> flags inteiras ------------#
+                    #---------------- FIM --> flags inteiras ------------#
                     
-                for ll in range(len(flags)):
-                    fl = flags[ll]
-                    print('ll = ', ll,'flag = ', fl)
-                    aux1 = []
+                    aux2 = []
                      
                     #---------------- teste flegs decimais com arredondamento ------------#
                     if (fl <= -1):
@@ -2665,197 +3548,81 @@ class plot_diag(object):
                         exp  = "(nchan=="+str(channel)+") & (idqc>"+str(inf)+" & idqc<"+str(fl)+")"
                         
                         #---------------- lista com os dados da flag ------------#
-                        aux1 = self[f].obsInfo[varName].loc[varType].query(exp)
+                        aux2 = self[f].obsInfo[varName].loc[varType].query(exp)
+                        
+                        label_name = "flag btw ("+str(inf)+" "+str(fl)+") ["+str(len(aux2))+"]"
                         
                         #---------------- soma qntdd de dados rejeitados (idqc!=0) ------------#
                         if (fl != 0.0):
-                            soma_flags = soma_flags + len(aux1)
+                            soma_flags = soma_flags + len(aux2)
                             
-                        #---------------- Comandos de plote ------------#
-                        if ( len(aux1) > 0 ):
-                            label = "flag btw ("+str(inf)+" "+str(fl)+") ["+str(len(aux1))+"]"
-                            #color = getColor(minVal=0, maxVal=len(flags)-1, 
-                            #                 value=fl,hex=True,cmapName='Paired')
-                            color = getColor(minVal=0, maxVal=len(flags), 
-                                             value=ll,hex=True,cmapName='tab20')
-                        
-                            legend_labels.append(mpatches.Patch(color=color, label=label) )
-                            ax = aux1.plot(ax=ax,legend=True, marker="o", color=color, **kwargs)
-                            setColor += 1
-                            plt.legend(handles=legend_labels, numpoints=1, loc='center left', bbox_to_anchor=(1.0, 0.5), 
-                                       fancybox=True, shadow=False, frameon=False, ncol=1, prop={"size": 10})
                         
                     elif (fl >= 1):
                         sup = fl + 1
                         exp  = "(nchan=="+str(channel)+") & (idqc>"+str(fl)+" & idqc<"+str(sup)+")"
                         
                         #---------------- lista com os dados da flag ------------#
-                        aux1 = self[f].obsInfo[varName].loc[varType].query(exp)
+                        aux2 = self[f].obsInfo[varName].loc[varType].query(exp)
+                        
+                        label_name = "flag btw ("+str(fl)+" "+str(sup)+") ["+str(len(aux2))+"]"
                         
                         #---------------- soma qntdd de dados rejeitados (idqc!=0) ------------#
                         if (fl != 0.0):
-                            soma_flags = soma_flags + len(aux1)
+                            soma_flags = soma_flags + len(aux2)
                             
-                        #---------------- Comandos de plote ------------#
-                        if ( len(aux1) > 0 ):
-                            label = "flag btw ("+str(fl)+" "+str(sup)+") ["+str(len(aux1))+"]"
-                            #color = getColor(minVal=0, maxVal=len(flags)-1, 
-                            #                 value=fl,hex=True,cmapName='Paired')
-                            color = getColor(minVal=0, maxVal=len(flags), 
-                                             value=ll,hex=True,cmapName='tab20')
-                        
-                            legend_labels.append(mpatches.Patch(color=color, label=label) )
-                            ax = aux1.plot(ax=ax,legend=True, marker="o", color=color, **kwargs)
-                            setColor += 1
-                            plt.legend(handles=legend_labels, numpoints=1, loc='center left', bbox_to_anchor=(1.0, 0.5), 
-                                       fancybox=True, shadow=False, frameon=False, ncol=1, prop={"size": 10})
-                        
+                                
                     else:
                         sup = fl + 1
                         inf = fl - 1
-                        exp  = "(nchan=="+str(channel)+") & (idqc>"+str(inf)+" & idqc<"+str(sup)+")"
+                        exp  = "(nchan=="+str(channel)+") & ((idqc != 0) and (idqc>"+str(inf)+" and idqc<"+str(sup)+"))"
                         
                         #---------------- lista com os dados da flag ------------#
-                        aux1 = self[f].obsInfo[varName].loc[varType].query(exp)
+                        aux2 = self[f].obsInfo[varName].loc[varType].query(exp)
+                        
+                        label_name = "flag btw ("+str(inf)+" 0)U(0 "+str(sup)+") ["+str(len(aux2))+"]"
                         
                         #---------------- soma qntdd de dados rejeitados (idqc!=0) ------------#
-                        if (fl != 0.0):
-                            soma_flags = soma_flags + len(aux1)
+                        if (len(aux2) > 0):
+                            soma_flags = soma_flags + len(aux2)
                             
-                        #---------------- Comandos de plote ------------#
-                        if ( len(aux1) > 0 ):
-                            label = "flag btw ("+str(inf)+" "+str(sup)+") ["+str(len(aux1))+"]"
-                            #color = getColor(minVal=0, maxVal=len(flags)-1, 
-                            #                 value=fl,hex=True,cmapName='Paired')
-                            color = getColor(minVal=0, maxVal=len(flags), 
-                                             value=ll,hex=True,cmapName='tab20')
+                    #---------------- Comandos de plote ------------#
+                    if ( len(aux2) > 0 and figMap == True ):
+                        label = label_name
+                        #color = getColor(minVal=0, maxVal=len(flags)-1, 
+                        #                 value=fl,hex=True,cmapName='Paired')
+                        color = getColor(minVal=0, maxVal=len(flags), 
+                                         value=ll,hex=True,cmapName='Paired')
                         
-                            legend_labels.append(mpatches.Patch(color=color, label=label) )
-                            ax = aux1.plot(ax=ax,legend=True, marker="o", color=color, **kwargs)
-                            setColor += 1
-                            plt.legend(handles=legend_labels, numpoints=1, loc='center left', bbox_to_anchor=(1.0, 0.5), 
-                                       fancybox=True, shadow=False, frameon=False, ncol=1, prop={"size": 10})
-                    
-                #---------------- FIM for --> flags decimas - intervalos ------------#
+                        legend_labels.append(mpatches.Patch(color=color, label=label) )
+                        ax = aux2.plot(ax=ax,legend=True, marker="o", color=color, **kwargs)
+                        setColor += 1
+                        plt.legend(handles=legend_labels, numpoints=1, loc='center left', bbox_to_anchor=(1.0, 0.5), 
+                                   fancybox=True, shadow=False, frameon=False, ncol=1, prop={"size": 10})
+                        
+                    #---------------- FIM --> flags decimas - intervalos ------------#
                     
                 
                 #---------------- comandos finais do plote e salva figura ------------#
-                forplot = 'Channel ='+str(channel)+' | Rejected total ='+str(soma_flags)
+                if (figMap):
+                    forplot = 'Channel ='+str(channel)+' | Rejected total ='+str(soma_flags)
                 
-                date_title = str(date.strftime("%d%b%Y - %H%M")) + ' GMT'
-                plt.title(date_title, loc='right', fontsize=10)
-                plt.title(instrument_title, loc='left', fontsize=9)
-                plt.annotate(forplot, xy=(0.45, 1.015), xytext=(0, 0), xycoords='axes fraction', textcoords='offset points', 
-                             color='gray', fontweight='bold', fontsize='10', horizontalalignment='left', verticalalignment='center')
+                    date_title = str(date.strftime("%d%b%Y - %H%M")) + ' GMT'
+                    plt.title(date_title, loc='right', fontsize=10)
+                    plt.title(instrument_title, loc='left', fontsize=9)
+                    plt.annotate(forplot, xy=(0.45, 1.015), xytext=(0, 0), xycoords='axes fraction', textcoords='offset points', 
+                                 color='gray', fontweight='bold', fontsize='10', horizontalalignment='left', verticalalignment='center')
                 
-                plt.tight_layout()
-                plt.savefig('Flags-idqc_'+str(varName) + '-' + str(varType)+'_'+ 'CH' + str(channel) + '_' +datefmt+'.png', 
-                            bbox_inches='tight', dpi=100)
+                    plt.tight_layout()
+                    plt.savefig('Flags-idqc_'+str(varName) + '-' + str(varType)+'_'+ 'CH' + str(channel) + '_' +datefmt+'.png', 
+                                bbox_inches='tight', dpi=100)
                     
                 
-                
-#                 exp    = "(nchan=="+str(channel)+") & (idqc==0.0)"
-#                 flag_0 = self[f].obsInfo[varName].loc[varType].query(exp)
-#                 exp    = "(nchan=="+str(channel)+") & (idqc==1.0)"
-#                 flag_1 = self[f].obsInfo[varName].loc[varType].query(exp)
-#                 exp    = "(nchan=="+str(channel)+") & (idqc==2.0)"
-#                 flag_2 = self[f].obsInfo[varName].loc[varType].query(exp)
-#                 exp    = "(nchan=="+str(channel)+") & (idqc==3.0)"
-#                 flag_3 = self[f].obsInfo[varName].loc[varType].query(exp)
-#                 exp    = "(nchan=="+str(channel)+") & (idqc==4.0)"
-#                 flag_4 = self[f].obsInfo[varName].loc[varType].query(exp)
-#                 exp    = "(nchan=="+str(channel)+") & (idqc==5.0)"
-#                 flag_5 = self[f].obsInfo[varName].loc[varType].query(exp)
-#                 exp    = "(nchan=="+str(channel)+") & (idqc==6.0)"
-#                 flag_6 = self[f].obsInfo[varName].loc[varType].query(exp)
-                
-#                 exp     = "(nchan=="+str(channel)+") & (idqc==7.0)"
-#                 flag_7  = self[f].obsInfo[varName].loc[varType].query(exp)
-#                 exp     = "(nchan=="+str(channel)+") & (idqc==8.0)"
-#                 flag_8  = self[f].obsInfo[varName].loc[varType].query(exp)
-#                 exp     = "(nchan=="+str(channel)+") & (idqc==9.0)"
-#                 flag_9  = self[f].obsInfo[varName].loc[varType].query(exp)
-#                 exp     = "(nchan=="+str(channel)+") & (idqc==10.0)"
-#                 flag_10 = self[f].obsInfo[varName].loc[varType].query(exp)
-#                 exp     = "(nchan=="+str(channel)+") & (idqc==50.0)"
-#                 flag_50 = self[f].obsInfo[varName].loc[varType].query(exp)
-#                 exp     = "(nchan=="+str(channel)+") & (idqc==51.0)"
-#                 flag_51 = self[f].obsInfo[varName].loc[varType].query(exp)
-                
-#                 soma_flags = 0.00000
-#                 soma_flags = len(flag_0) + len(flag_1) + len(flag_2) + len(flag_3) + len(flag_4) + len(flag_5) + len(flag_6) + len(flag_7) + len(flag_8) + len(flag_9) + len(flag_10) + len(flag_50) + len(flag_51)
-                
-#                 nf_0.append(len(flag_0))
-#                 nf_1.append(len(flag_1))
-#                 nf_2.append(len(flag_2))
-#                 nf_3.append(len(flag_3))
-#                 nf_4.append(len(flag_4))
-#                 nf_5.append(len(flag_5))
-#                 nf_6.append(len(flag_6))
-                
-#                 nf_7.append(len(flag_7))
-#                 nf_8.append(len(flag_8))
-#                 nf_9.append(len(flag_9))
-#                 nf_10.append(len(flag_10))
-#                 nf_50.append(len(flag_50))
-#                 nf_51.append(len(flag_51))
-                    
-#                 forplot = 'Channel ='+str(channel)+' | Total flags ='+str(soma_flags)
-                
-#                 # Radiance plots
-#                 if (figMap):
-#                     # Case: assimilated and rejected
-#                     #if ((len(assim)) != 0 or (len(rejei)) != 0):
-#                     df_list = [flag_0, flag_1, flag_2, flag_3, flag_4, flag_5, flag_6, flag_7, flag_8, flag_9, flag_10, flag_50, flag_51]    
-#                     name_list = ["flag 0 ["+str(len(flag_0))+"]","flag 1 ["+str(len(flag_1))+"]","flag 2 ["+str(len(flag_2))+"]",
-#                                  "flag 3 ["+str(len(flag_3))+"]","flag 4 ["+str(len(flag_4))+"]","flag 5 ["+str(len(flag_5))+"]",
-#                                  "flag 6 ["+str(len(flag_6))+"]","flag 7 ["+str(len(flag_7))+"]","flag 8 ["+str(len(flag_8))+"]",
-#                                  "flag 9 ["+str(len(flag_9))+"]","flag 10 ["+str(len(flag_10))+"]","flag 50 ["+str(len(flag_50))+"]",
-#                                  "flag 51 ["+str(len(flag_51))+"]"]
-# #                     marker_list = ["o","o","o","o","o","o","o","o","o","o","o","o","o"]    
-#                     color_list = ["green","navy","teal","deepskyblue","cyan","springgreen","lime","greenyellow","yellow","orange",
-#                                  "salmon","hotpink","red"]
-                    
-#                     setColor = 0 
-#                     legend_labels = []
-                    
-#                     fig = plt.figure(figsize=(12, 6))
-#                     ax  = fig.add_subplot(1, 1, 1)
-#                     ax = geoMap(area=None,ax=ax)
-# #                     for dfi,namedf,mk,cl in zip(df_list,name_list,marker_list,color_list):
-#                     for dfi,namedf,cl in zip(df_list,name_list,color_list):
-#                         df    = dfi
-#                         legend_labels.append(mpatches.Patch(color=cl, label=namedf) )
-# #                         ax = df.plot(ax=ax,legend=True, marker=mk, color=cl, **kwargs)
-#                         ax = df.plot(ax=ax,legend=True, marker="o", color=cl, **kwargs)
-#                         setColor += 1
-#                         plt.legend(handles=legend_labels, numpoints=1, loc='center left', bbox_to_anchor=(1.0, 0.5), 
-#                                    fancybox=True, shadow=False, frameon=False, ncol=1, prop={"size": 10})
-                        
-#                     date_title = str(date.strftime("%d%b%Y - %H%M")) + ' GMT'
-#                     plt.title(date_title, loc='right', fontsize=10)
-#                     plt.title(instrument_title, loc='left', fontsize=9)
-#                     plt.annotate(forplot, xy=(0.45, 1.015), xytext=(0, 0), xycoords='axes fraction', textcoords='offset points', 
-#                                  color='gray', fontweight='bold', fontsize='10', horizontalalignment='left', verticalalignment='center')
-                    
-#                     plt.tight_layout()
-#                     plt.savefig('Flags-idqc_'+str(varName) + '-' + str(varType)+'_'+ 'CH' + str(channel) + '_' +datefmt+'.png', 
-#                                 bbox_inches='tight', dpi=100)
-# #                     else:
-# #                        print("channel ",channel," not assimilated or rejected on the date -->",date.strftime("%Y-%m-%d:%H"))
                     
             except:
                 print("++++++++++++++++++++++++++ ERROR: file reading --> STATCOUNT ++++++++++++++++++++++++++")
                 print(setcolor.WARNING + "    >>> No information on this date (" + str(date.strftime("%Y-%m-%d:%H")) +") <<< " + setcolor.ENDC)
-#                 if(channel == None):
-#                     assi.append(None)
-#                     moni.append(None)
-#                     reje.append(None)
-#                 else:
-#                     assi.append(None)
-#                     moniAssi.append(None)
-#                     moniReje.append(None)
-#                     reje.append(None)
+                
+                
                     
             f = f + 1
             date = date + timedelta(hours=int(nHour))
@@ -2948,8 +3715,1184 @@ class plot_diag(object):
 #                             bbox_inches='tight', dpi=100)
 
                 
+
+#-------------- Novas funções: ler e plotar arquivo fort.220 --------------------#
+    def fort220_plot(self, dateIni=None, dateFin=None, nHour="06", Label=None, Flag=None, cost_gradient=False, vmin=None, vmax=None, Clean=None, **kwargs):
+        """
+        Function plot Label versus inner loop of the fort.220 file. A figure for each date in range [dateIni, dateFin].
+        
+        """
+        
+        idx = pd.IndexSlice
+        
+        datei = datetime.strptime(str(dateIni), "%Y%m%d%H")
+        datef = datetime.strptime(str(dateFin), "%Y%m%d%H")
+        date  = datei
+        
+        DayHour_tmp = []
+        
+        f = 0
+        while (date <= datef):
+
+            datefmt = date.strftime("%Y%m%d%H")
+            DayHour_tmp.append(date.strftime("%d%H"))
+            
+            
+            # try: For issues reading the file (file not found)
+            # in the except statement an error message is printed and continues for other dates
+            try:
+                
+                InnerLoop1, InnerLoop2 = [], []
+                if cost_gradient:
+                    InnerLoop1 = self[f][0].loc[idx[:], idx['InnerLoop']]   # 1º outer loop
+                    InnerLoop2 = self[f][1].loc[idx[:], idx['InnerLoop']]   # 2º outer loop
+                    df1 = self[f][0].loc[idx[:], idx[Label]]  # 1º outer loop
+                    df2 = self[f][1].loc[idx[:], idx[Label]]  # 2º outer loop
+                else:
+                    InnerLoop1 = self[f][0].loc[idx[:,[Label]], idx['InnerLoop']]   # 1º outer loop
+                    InnerLoop2 = self[f][1].loc[idx[:,[Label]], idx['InnerLoop']]   # 2º outer loop
+                    df1 = self[f][0].loc[idx[:,[Label]], idx[Flag]]  # 1º outer loop
+                    df2 = self[f][1].loc[idx[:,[Label]], idx[Flag]]  # 2º outer loop
+                
+                xmin = min([min(InnerLoop1), min(InnerLoop2)])
+                xmax = max([max(InnerLoop1), max(InnerLoop2)])
+                
+                #ymin = min([min(df1), min(df2)])
+                #ymax = max([max(df1), max(df2)])
+                
+                nloop_1 = InnerLoop1.iloc[-1]
+                #print('nloop_1 = ', nloop_1)
+                
+                #ymin = ymin - (ymax - ymin)/nloop_1
+                #ymax = ymax + (ymax - ymin)/nloop_1
+                
+                ymin = vmin
+                ymax = vmax
+                
+                fig = plt.figure(figsize=(6, 4))
+                fig, ax1 = plt.subplots(1, 1)
+                plt.style.use('seaborn-v0_8-darkgrid')
+                
+                date_title = str(date.strftime("%d%b%Y - %H%M")) + ' GMT'
+                
+                ax1.plot(InnerLoop1, df1, "-", label="1º outer loop", **kwargs)
+                ax1.plot(InnerLoop2, df2, "--", label="2º outer loop", **kwargs)
+                ax1.legend(fancybox=True, frameon=True, shadow=True, loc="best",ncol=1)
+                ax1.grid(True)
+                ax1.set_xlabel('Inner loop', color='black', fontsize=12)
+                ax1.set_xlim(xmin, xmax)
+                ax1.set_ylim(ymin, ymax)
+                ax1.set_ylabel('('+Label+')', color='black', fontsize=14)
+                plt.title(date_title, loc='right', fontsize=12)
+                
+                plt.tight_layout()
+                plt.savefig('Fort220_'+str(Label) +'_'+datefmt+'.png', bbox_inches='tight', dpi=100)
+                
+            except:
+                print("++++++++++++++++++++++++++ ERROR: file reading --> fort220_plot_cost_gradient ++++++++++++++++++++++++++")
+                print(setcolor.WARNING + "    >>> No information on this date (" + str(date.strftime("%Y-%m-%d:%H")) +") <<< " + setcolor.ENDC)
+                
+            f = f + 1
+            date = date + timedelta(hours=int(nHour))
+            date_finale = date
+            
+            
+            
+    def fort220_plot_lines(self, dateIni=None, dateFin=None, nHour="06", Label=None, Flag=None, cost_gradient=False, vmin=None, vmax=None, Clean=None, **kwargs):
+        """
+        Function plot Label versus inner loop of the fort.220 file. A figure for all date in range [dateIni, dateFin].
+        
+        """
+        
+        idx = pd.IndexSlice
+        
+        datei = datetime.strptime(str(dateIni), "%Y%m%d%H")
+        datef = datetime.strptime(str(dateFin), "%Y%m%d%H")
+        date  = datei
+        
+        DayHour_tmp = []
+        
+        colors = mpl.colormaps['tab20'].colors
+        
+        fig = plt.figure(figsize=(10, 6))
+        fig, ax1 = plt.subplots(figsize=(10, 6))
+        plt.style.use('seaborn-v0_8-darkgrid')
+        #plt.style.use('Solarize_Light2')
+        
+        ymin = 990000000
+        ymax = 0.000000
+        f = 0
+        while (date <= datef):
+
+            datefmt = date.strftime("%Y%m%d%H")
+            DayHour_tmp.append(date.strftime("%d%H"))
+            
+            
+            # try: For issues reading the file (file not found)
+            # in the except statement an error message is printed and continues for other dates
+            try:
+                
+                InnerLoop1, InnerLoop2 = [], []
+                if cost_gradient:
+                    InnerLoop1 = self[f][0].loc[idx[:], idx['InnerLoop']]   # 1º outer loop
+                    InnerLoop2 = self[f][1].loc[idx[:], idx['InnerLoop']]   # 2º outer loop
+                    df1 = self[f][0].loc[idx[:], idx[Label]]  # 1º outer loop
+                    df2 = self[f][1].loc[idx[:], idx[Label]]  # 2º outer loop
+                else:
+                    InnerLoop1 = self[f][0].loc[idx[:,[Label]], idx['InnerLoop']]   # 1º outer loop
+                    InnerLoop2 = self[f][1].loc[idx[:,[Label]], idx['InnerLoop']]   # 2º outer loop
+                    df1 = self[f][0].loc[idx[:,[Label]], idx[Flag]]  # 1º outer loop
+                    df2 = self[f][1].loc[idx[:,[Label]], idx[Flag]]  # 2º outer loop
+                
+                xmin = min([min(InnerLoop1), min(InnerLoop2)])
+                xmax = max([max(InnerLoop1), max(InnerLoop2)])
+                
+                ymin = min([min(df1), min(df2), ymin])
+                ymax = max([max(df1), max(df2), ymax])
+                
+                nloop_1 = InnerLoop1.iloc[-1]
+                #print('nloop_1 = ', nloop_1)
+                
+                ymin = ymin - (ymax - ymin)/nloop_1
+                ymax = ymax + (ymax - ymin)/nloop_1
+                
+                #ymin = vmin
+                #ymax = vmax
+                
+                color = colors[f]
+                
+                ax1.plot(InnerLoop1, df1, "-", c=color, label="1º out. "+str(date.strftime("%Y-%m-%d:%H")), **kwargs)
+                ax1.plot(InnerLoop2, df2, "--", c=color, label="2º out. "+str(date.strftime("%Y-%m-%d:%H")), **kwargs)
                 
                 
+            except:
+                print("++++++++++++++++++++++++++ ERROR: file reading --> fort220_plot_cost_gradient ++++++++++++++++++++++++++")
+                print(setcolor.WARNING + "    >>> No information on this date (" + str(date.strftime("%Y-%m-%d:%H")) +") <<< " + setcolor.ENDC)
+                
+            f = f + 1
+            date = date + timedelta(hours=int(nHour))
+            date_finale = date
+            
+        
+        date_title = str(datei.strftime("%d%b")) + '-' + str(date_finale.strftime("%d%b")) + ' ' + str(date_finale.strftime("%Y"))
+        
+        #ax1.legend(fancybox=True, frameon=True, shadow=True, loc='upper center', bbox_to_anchor=(0.5, -0.1), ncol=4)
+        ax1.legend(numpoints=1, loc='upper center', bbox_to_anchor=(0.5, -0.15), 
+                   fancybox=True, shadow=False, frameon=False, ncol=4, prop={"size": 10})
+        ax1.grid(True)
+        ax1.set_xlabel('Inner loop', color='black', fontsize=12)
+        ax1.set_xlim(xmin, xmax)
+        ax1.set_ylim(ymin, ymax)
+        ax1.set_ylabel('('+Label+')', color='black', fontsize=14)
+        plt.title(date_title, loc='right', fontsize=12)
+            
+        plt.tight_layout()
+        plt.savefig('Fort220_lines_time_'+str(Label) +'.png', bbox_inches='tight', dpi=100)
+
+            
+#-------------- Novas funções: ler e plotar arquivo fort.220 --------------------#
+    def fort220_time(self, dateIni=None, dateFin=None, nHour="06", Label=None, Flag=None, cost_gradient=False, Clean=None):
+        """
+        Function plot Label versus date of the fort.220 file in first and last inner loops.
+        
+        """
+        
+        idx = pd.IndexSlice
+        
+        datei = datetime.strptime(str(dateIni), "%Y%m%d%H")
+        datef = datetime.strptime(str(dateFin), "%Y%m%d%H")
+        date  = datei
+        
+        DayHour_tmp = []
+        df1_first, df2_first, df1_last, df2_last = [], [], [], []
+        
+        f = 0
+        while (date <= datef):
+
+            datefmt = date.strftime("%Y%m%d%H")
+            DayHour_tmp.append(date.strftime("%d%H"))
+            
+            
+            # try: For issues reading the file (file not found)
+            # in the except statement an error message is printed and continues for other dates
+            try:
+                nloop1 = 0
+                nloop2 = 0
+                
+                if cost_gradient:
+                    nloop1 = self[f][0].iloc[-1, 0]  # ultimo valor na coluna iteração
+                    nloop2 = self[f][1].iloc[-1, 0]  # ultimo valor na coluna iteração
+                    df1_first.append(self[f][0].loc[idx[0], idx[Label]])  # 1º outer loop
+                    df2_first.append(self[f][1].loc[idx[0], idx[Label]])  # 2º outer loop
+                    df1_last.append(self[f][0].loc[idx[nloop1], idx[Label]])  # 1º outer loop
+                    df2_last.append(self[f][1].loc[idx[nloop2], idx[Label]])  # 2º outer loop
+                else:
+                    nloop1 = self[f][0].iloc[-1, 0]  # ultimo valor na coluna iteração
+                    nloop2 = self[f][1].iloc[-1, 0]  # ultimo valor na coluna iteração
+                    df1_first.append(self[f][0].loc[idx[0,[Label]], idx[Flag]])  # 1º outer loop
+                    df2_first.append(self[f][1].loc[idx[0,[Label]], idx[Flag]])  # 2º outer loop
+                    df1_last.append(self[f][0].loc[idx[nloop1,[Label]], idx[Flag]])  # 1º outer loop
+                    df2_last.append(self[f][1].loc[idx[nloop2,[Label]], idx[Flag]])  # 2º outer loop
+                    
+                    
+            except:
+                print("++++++++++++++++++++++++++ ERROR: file reading --> fort220_plot_cost_gradient ++++++++++++++++++++++++++")
+                print(setcolor.WARNING + "    >>> No information on this date (" + str(date.strftime("%Y-%m-%d:%H")) +") <<< " + setcolor.ENDC)
+                
+                
+            f = f + 1
+            date = date + timedelta(hours=int(nHour))
+            date_finale = date
+                    
+                    
+        if(len(DayHour_tmp) > 4):
+            DayHour = [hr if (ix % int(len(DayHour_tmp) / 4)) == 0 else '' for ix, hr in enumerate(DayHour_tmp)]
+        else:
+            DayHour = DayHour_tmp
+                
+        x_axis      = np.arange(0, len(DayHour), 1)
+        date_title = str(datei.strftime("%d%b")) + '-' + str(date_finale.strftime("%d%b")) + ' ' + str(date_finale.strftime("%Y"))
+            
+        fig = plt.figure(figsize=(10, 4))
+        #fig = plt.figure(figsize=(12, 6))
+        fig, ax1 = plt.subplots(1, 1)
+        plt.style.use('seaborn-v0_8-darkgrid')
+
+        plt.axhline(y=0.0,ls='solid',c='#d3d3d3')
+        
+        ax1.plot(x_axis, df1_first, "-o", label="1º Outer loop: Inner [0]")#, color='purple')
+        ax1.plot(x_axis, df1_last, "-o", label="1º Outer loop: Inner ["+str(nloop1)+"]")#, color='orange')
+        ax1.plot(x_axis, df2_first, "-o", label="2º Outer loop: Inner [0]")#, color='brown')
+        ax1.plot(x_axis, df2_last, "-o", label="2º Outer loop: Inner ["+str(nloop2)+"]")#, color='limegreen')
+        #plt.legend(fancybox=True, frameon=True, shadow=True, bbox_to_anchor=(1, 1), loc="upper left", ncol=1)
+        ax1.legend(numpoints=1, loc='upper center', bbox_to_anchor=(0.5, -0.15), 
+                   fancybox=True, shadow=True, frameon=True, ncol=2, prop={"size": 10})
+        ax1.set_xlabel('Date (DayHour)', fontsize=10)
+        plt.title(date_title, loc='right', fontsize=10)
+        #plt.title(instrument_title, loc='left', fontsize=9)
+        #plt.annotate(forplot, xy=(0.0, 0.965), xytext=(0, 0), xycoords='axes fraction', textcoords='offset points', 
+        #             color='lightgray', fontweight='bold', fontsize='12', horizontalalignment='left', verticalalignment='center')
+                
+        ax1.set_ylim(np.round(-0.05*np.max([df1_first,df1_last,df2_first,df2_last])), 
+                     np.round(1.05*np.max([df1_first,df1_last,df2_first,df2_last])))
+        ax1.set_ylabel(Label, color='black', fontsize=12)
+        ax1.tick_params('y', colors='black')
+        plt.xticks(x_axis, DayHour)
+        major_ticks = [ DayHour.index(dh) for dh in filter(None,DayHour) ]
+        ax1.set_xticks(major_ticks)
+        plt.axhline(y=np.mean(df1_first),ls='dotted',c='lightgray')
+        plt.axhline(y=np.mean(df1_last),ls='dotted',c='lightgray')
+        plt.axhline(y=np.mean(df2_first),ls='dotted',c='lightgray')
+        plt.axhline(y=np.mean(df2_last),ls='dotted',c='lightgray')
+        plt.tight_layout()
+        plt.savefig('time_series_'+str(Label) + 'Flag-' + str(Flag) + '_'+'Innerloop.png', 
+                    bbox_inches='tight', dpi=100)
+        
+        
+        
+#-------------- Novas funções: ler e plotar arquivo fort.220 --------------------#
+    def fort220_time_Obscontrib(self1, self2, dateIni=None, dateFin=None, nHour="06", Label=None, LabelObs=None, Flag=None, Clean=None):
+        """
+        The total cost function (cost) is sum of the list J (list of contribuition of the each observation). This Function plot the rate (DQ) of the observation contribuition LabelObs in respect the Label variable. The quocient DQ is calculate for each outer loop:
+        
+        DQ = ( J_last - J_first )/( cost_last - cost_first )
+        
+        last --> value in last inner loop
+        firs --> value in first inner loop
+        
+        If Flag is None are ploted bar colunms for each flag and a figure for each date is returned. If Flag is a number, two time siries plotes are returnes: 
+        
+        1º ) Q = (J/cost)*100  in first and last inner loop of the each outer loops.
+        2º ) DQ of the each outer loop.
+        
+        """
+        
+        idx = pd.IndexSlice
+        
+        datei = datetime.strptime(str(dateIni), "%Y%m%d%H")
+        datef = datetime.strptime(str(dateFin), "%Y%m%d%H")
+        date  = datei
+        
+        DayHour_tmp = []
+        Q1_first, Q2_first, Q1_last, Q2_last = [], [], [], []
+        
+        DQ1, DQ2 = [], []
+        
+        f = 0
+        while (date <= datef):
+
+            datefmt = date.strftime("%Y%m%d%H")
+            DayHour_tmp.append(date.strftime("%d%H"))
+            
+            
+            # try: For issues reading the file (file not found)
+            # in the except statement an error message is printed and continues for other dates
+            if Flag == None:
+                
+                Q1_first, Q2_first, Q1_last, Q2_last = [], [], [], []
+                DQ1, DQ2 = [], []
+                col_flags, xFlags1, xFlags2 = [], [], []
+                
+                col_flags = self2[f][0].loc[idx[:,idx[:]], idx['1':]].columns.tolist()
+                
+                #print('')
+                #print('col_flags = ',col_flags)
+                #print('')
+                
+                for Flg in col_flags:
+                    
+                    try:
+                        nloop1 = 0
+                        nloop2 = 0
+
+                        df1_first, df2_first, df1_last, df2_last = 0, 0, 0, 0
+                        dfo1_first, dfo2_first, dfo1_last, dfo2_last = 0, 0, 0, 0
+
+
+                        nloop1 = self1[f][0].iloc[-1, 0]  # ultimo valor na coluna iteração
+                        nloop2 = self1[f][1].iloc[-1, 0]  # ultimo valor na coluna iteração
+
+                        df1_first = self1[f][0].loc[idx[0], idx[Label]]  # 1º outer loop
+                        df2_first = self1[f][1].loc[idx[0], idx[Label]]  # 2º outer loop
+                        df1_last  = self1[f][0].loc[idx[nloop1], idx[Label]]  # 1º outer loop
+                        df2_last  = self1[f][1].loc[idx[nloop2], idx[Label]]  # 2º outer loop
+
+                        dfo1_first = self2[f][0].loc[idx[0,[LabelObs]], idx[Flg]].values  # 1º outer loop
+                        dfo2_first = self2[f][1].loc[idx[0,[LabelObs]], idx[Flg]].values  # 2º outer loop
+                        dfo1_last  = self2[f][0].loc[idx[nloop1,[LabelObs]], idx[Flg]].values  # 1º outer loop
+                        dfo2_last  = self2[f][1].loc[idx[nloop2,[LabelObs]], idx[Flg]].values  # 2º outer loop
+                        
+                        if abs(dfo1_last) != 0:
+                            xFlags1.append(float(Flg)) 
+                            #if abs(df1_last - df1_first) > 10e-06:
+                            DQ1.append( ( (dfo1_last[0] - dfo1_first[0]) / (df1_last - df1_first) ) )
+                            #else:
+                            #    DQ1.append(-99)
+                                
+                        if abs(dfo2_last) != 0:
+                            xFlags2.append(float(Flg)) 
+                            #if abs(df2_last - df2_first) > 10e-06:
+                            DQ2.append( ( (dfo2_last[0] - dfo2_first[0]) / (df2_last - df2_first) ) )
+                            #else:
+                            #    DQ1.append(-99)
+
+
+                    except:
+                        print("++++++++++++++++++++++++++ ERROR: file reading --> fort220_plot_cost_gradient ++++++++++++++++++++++++++")
+                        print(setcolor.WARNING + "    >>> No information on this date (" + str(date.strftime("%Y-%m-%d:%H")) +") <<< " + setcolor.ENDC)
+                
+                if len(DQ1)>0 or len(DQ2)>0:
+                    #x_axis      = np.arange(0, len(col_flags), 1)
+                    x_axis1 = xFlags1
+                    x_axis2 = xFlags2
+                    x_Flags = sorted(list(set(xFlags1 + xFlags2)))
+                    print('x_Flags = ',x_Flags)
+                    x_axis  = np.arange(0, len(x_Flags), 1)
+                    date_title = str(date.strftime("%d%b%Y - %H%M")) + ' GMT'
+                    forplot = 'Flag = '+ str(Flag)
+                    
+                    plt.rcParams['errorbar.capsize'] = 5
+
+                    fig = plt.figure(figsize=(8, 6))
+                    fig, ax1 = plt.subplots(figsize=(8, 6))
+                    plt.style.use('seaborn-v0_8-darkgrid')
+
+                    plt.axhline(y=0.0,ls='solid',c='#d3d3d3')
+                    width = 0.2
+                    ax1.bar(x_axis-width, DQ1, width=2*width, label="1º Outer loop")#, color='navy')
+                    ax1.bar(x_axis+width, DQ2, width=2*width, label="2º Outer loop")#, color='salmon')
+                    ax1.legend(numpoints=1, loc='upper center', bbox_to_anchor=(0.5, -0.15), 
+                               fancybox=True, shadow=True, frameon=True, ncol=2, prop={"size": 10})
+                    ax1.set_xlabel('Flags', fontsize=10)
+                    plt.title(date_title, loc='right', fontsize=10)
+                    #plt.title(instrument_title, loc='left', fontsize=9)
+                    plt.annotate(forplot, xy=(0.0, 0.965), xytext=(0, 0), xycoords='axes fraction', textcoords='offset points', 
+                                 color='lightgray', fontweight='bold', fontsize='12', horizontalalignment='left', verticalalignment='center')
+
+                    #ax1.set_ylim(np.round(-0.05*np.max([DQ1,DQ2])), 
+                    #             np.round(1.1*np.max([DQ1,DQ2])))
+                    ax1.set_ylabel('DQ = $\Delta$('+LabelObs+')/$\Delta$('+Label+')', color='black', fontsize=12)
+                    ax1.tick_params('y', colors='black')
+                    plt.xticks(x_axis, x_Flags)
+                    #major_ticks = [ DayHour.index(dh) for dh in filter(None,DayHour) ]
+                    #ax1.set_xticks(major_ticks)
+                    #plt.axhline(y=np.mean(DQ1),ls='dotted',c='lightgray')
+                    #plt.axhline(y=np.mean(DQ2),ls='dotted',c='lightgray')
+                    plt.tight_layout()
+                    plt.savefig('DQ_'+str(LabelObs) +'_'+str(Label) + 'Flag_' + str(Flag) + '_' + datefmt + '.png', 
+                                bbox_inches='tight', dpi=100)
+                
+            else:
+                try:
+                    nloop1 = 0
+                    nloop2 = 0
+
+                    df1_first, df2_first, df1_last, df2_last = 0, 0, 0, 0
+                    dfo1_first, dfo2_first, dfo1_last, dfo2_last = 0, 0, 0, 0
+
+
+                    nloop1 = self1[f][0].iloc[-1, 0]  # ultimo valor na coluna iteração
+                    nloop2 = self1[f][1].iloc[-1, 0]  # ultimo valor na coluna iteração
+
+                    df1_first = self1[f][0].loc[idx[0], idx[Label]]  # 1º outer loop
+                    df2_first = self1[f][1].loc[idx[0], idx[Label]]  # 2º outer loop
+                    df1_last  = self1[f][0].loc[idx[nloop1], idx[Label]]  # 1º outer loop
+                    df2_last  = self1[f][1].loc[idx[nloop2], idx[Label]]  # 2º outer loop
+
+                    dfo1_first = self2[f][0].loc[idx[0,[LabelObs]], idx[Flag]].values  # 1º outer loop
+                    dfo2_first = self2[f][1].loc[idx[0,[LabelObs]], idx[Flag]].values  # 2º outer loop
+                    dfo1_last  = self2[f][0].loc[idx[nloop1,[LabelObs]], idx[Flag]].values  # 1º outer loop
+                    dfo2_last  = self2[f][1].loc[idx[nloop2,[LabelObs]], idx[Flag]].values  # 2º outer loop
+
+
+
+                    Q1_first.append( (dfo1_first[0]/df1_first)*100 )
+                    Q2_first.append( (dfo2_first[0]/df2_first)*100 )
+
+                    Q1_last.append( (dfo1_last[0]/df1_last)*100 )
+                    Q2_last.append( (dfo2_last[0]/df2_last)*100 )
+
+                    if abs(df1_last - df1_first) > 10e-06:
+                        DQ1.append( ( (dfo1_last[0] - dfo1_first[0]) / (df1_last - df1_first) ) )
+                    else:
+                        DQ1.append(-99)
+
+                    if abs(df2_last - df2_first) > 10e-06:
+                        DQ2.append( ( (dfo2_last[0] - dfo2_first[0]) / (df2_last - df2_first) ) )
+                    else:
+                        DQ1.append(-99)
+
+
+                except:
+                    print("++++++++++++++++++++++++++ ERROR: file reading --> fort220_plot_cost_gradient ++++++++++++++++++++++++++")
+                    print(setcolor.WARNING + "    >>> No information on this date (" + str(date.strftime("%Y-%m-%d:%H")) +") <<< " + setcolor.ENDC)
+                
+                
+            f = f + 1
+            date = date + timedelta(hours=int(nHour))
+            date_finale = date
+            
+        print('+--------- DQ1 -----------+')
+        print(DQ1)
+        print('')
+        
+        print('+--------- DQ2 -----------+')
+        print(DQ2)
+        print('')
+        
+        if Flag != None:
+            
+            if(len(DayHour_tmp) > 4):
+                DayHour = [hr if (ix % int(len(DayHour_tmp) / 4)) == 0 else '' for ix, hr in enumerate(DayHour_tmp)]
+            else:
+                DayHour = DayHour_tmp
+
+            x_axis      = np.arange(0, len(DayHour), 1)
+            date_title = str(datei.strftime("%d%b")) + '-' + str(date_finale.strftime("%d%b")) + ' ' + str(date_finale.strftime("%Y"))
+
+            #-------------------- 1ª figura ------------------------------------------#
+            fig = plt.figure(figsize=(10, 4))
+            #fig = plt.figure(figsize=(12, 6))
+            fig, ax1 = plt.subplots(1, 1)
+            plt.style.use('seaborn-v0_8-darkgrid')
+
+            plt.axhline(y=0.0,ls='solid',c='#d3d3d3')
+            forplot = 'Flag = '+Flag
+
+            ax1.plot(x_axis, Q1_first, "-o", label="1º Outer loop: Inner [0]")#, color='purple')
+            ax1.plot(x_axis, Q1_last, "-o", label="1º Outer loop: Inner ["+str(nloop1)+"]")#, color='orange')
+            ax1.plot(x_axis, Q2_first, "-o", label="2º Outer loop: Inner [0]")#, color='brown')
+            ax1.plot(x_axis, Q2_last, "-o", label="2º Outer loop: Inner ["+str(nloop2)+"]")#, color='limegreen')
+            #plt.legend(fancybox=True, frameon=True, shadow=True, bbox_to_anchor=(1, 1), loc="upper left", ncol=1)
+            ax1.legend(numpoints=1, loc='upper center', bbox_to_anchor=(0.5, -0.15), 
+                       fancybox=True, shadow=True, frameon=True, ncol=2, prop={"size": 10})
+            ax1.set_xlabel('Date (DayHour)', fontsize=10)
+            plt.title(date_title, loc='right', fontsize=10)
+            #plt.title(instrument_title, loc='left', fontsize=9)
+            plt.annotate(forplot, xy=(0.0, 0.965), xytext=(0, 0), xycoords='axes fraction', textcoords='offset points', 
+                         color='lightgray', fontweight='bold', fontsize='12', horizontalalignment='left', verticalalignment='center')
+
+            ax1.set_ylim(np.round(-0.05*np.max([Q1_first,Q1_last,Q2_first,Q2_last])), 
+                         np.round(1.05*np.max([Q1_first,Q1_last,Q2_first,Q2_last])))
+            ax1.set_ylabel('Q = '+LabelObs+'/'+Label+' (%)', color='black', fontsize=12)
+            ax1.tick_params('y', colors='black')
+            plt.xticks(x_axis, DayHour)
+            major_ticks = [ DayHour.index(dh) for dh in filter(None,DayHour) ]
+            ax1.set_xticks(major_ticks)
+            plt.axhline(y=np.mean(Q1_first),ls='dotted',c='lightgray')
+            plt.axhline(y=np.mean(Q1_last),ls='dotted',c='lightgray')
+            plt.axhline(y=np.mean(Q2_first),ls='dotted',c='lightgray')
+            plt.axhline(y=np.mean(Q2_last),ls='dotted',c='lightgray')
+            plt.tight_layout()
+            plt.savefig('time_series_Q_'+str(LabelObs) +'_'+str(Label) + 'Flag_' + str(Flag) + '_'+'Innerloop.png', 
+                        bbox_inches='tight', dpi=100)
+            if Clean:
+                plt.clf()
+
+
+            #-------------------- 2ª figura ------------------------------------------#
+            fig = plt.figure(figsize=(10, 4))
+            #fig = plt.figure(figsize=(12, 6))
+            fig, ax1 = plt.subplots(1, 1)
+            plt.style.use('seaborn-v0_8-darkgrid')
+
+            plt.axhline(y=0.0,ls='solid',c='#d3d3d3')
+            forplot = 'Flag = '+Flag
+
+            ax1.plot(x_axis, DQ1, "-o", label="1º Outer loop")#, color='navy')
+            ax1.plot(x_axis, DQ2, "-o", label="2º Outer loop")#, color='salmon')
+            #plt.legend(fancybox=True, frameon=True, shadow=True, bbox_to_anchor=(1, 1), loc="upper left", ncol=1)
+            ax1.legend(numpoints=1, loc='upper center', bbox_to_anchor=(0.5, -0.15), 
+                       fancybox=True, shadow=True, frameon=True, ncol=2, prop={"size": 10})
+            ax1.set_xlabel('Date (DayHour)', fontsize=10)
+            plt.title(date_title, loc='right', fontsize=10)
+            #plt.title(instrument_title, loc='left', fontsize=9)
+            plt.annotate(forplot, xy=(0.0, 0.965), xytext=(0, 0), xycoords='axes fraction', textcoords='offset points', 
+                         color='lightgray', fontweight='bold', fontsize='12', horizontalalignment='left', verticalalignment='center')
+
+            #ax1.set_ylim(np.round(-0.05*np.max([DQ1,DQ2])), 
+            #             np.round(1.1*np.max([DQ1,DQ2])))
+            ax1.set_ylabel('DQ = $\Delta$('+LabelObs+')/$\Delta$('+Label+')', color='black', fontsize=12)
+            ax1.tick_params('y', colors='black')
+            plt.xticks(x_axis, DayHour)
+            major_ticks = [ DayHour.index(dh) for dh in filter(None,DayHour) ]
+            ax1.set_xticks(major_ticks)
+            plt.axhline(y=np.mean(DQ1),ls='dotted',c='lightgray')
+            plt.axhline(y=np.mean(DQ2),ls='dotted',c='lightgray')
+            plt.tight_layout()
+            plt.savefig('time_series_DQ_'+str(LabelObs) +'_'+str(Label) + 'Flag_' + str(Flag) + '.png', 
+                        bbox_inches='tight', dpi=100)
+        
+        
+        
+
+    def time_series_fort220(self, OuterLoop=1, Label=None, Flag=None, dateIni=None, dateFin=None, nHour="06", Clean=None):
+        
+        '''
+        The time_series fort220 function plots a time series for fort.220 data in different flag of the contribution term. A Hovmoller diagram is return if Flag=None or Flag is a list.
+
+        '''
+        if Clean == None:
+            Clean = True
+
+        delta = nHour
+        
+        idx = pd.IndexSlice
+
+        separator = " ============================================================================================================="
+
+        print()
+        print(separator)
+            
+        zflags_all = []
+        n_flag = len(self[0][OuterLoop-1].loc[idx[0,[Label]], idx[:]].columns) - 1   # Qntdd de flags
+        [zflags_all.append(int(i)) for i in range(1,n_flag+1,1)]
+
+        if type(Flag) == list:
+            zflag = Flag
+            flagList = 1
+            zflags_def = zflag
+        elif Flag == None:
+            zflag = zflags_all       #list of all flags 
+            flagList = 0
+            zflags_def = zflag
+        else:
+            zflag = Flag
+            flagList = 0 
+            zflags_def = zflags_all  #list of all flags 
+
+            
+        print(zflag,flagList)
+        print('')
+        print('Outer Loop: ',OuterLoop,' Label: ',Label)
+
+        datei = datetime.strptime(str(dateIni), "%Y%m%d%H")
+        datef = datetime.strptime(str(dateFin), "%Y%m%d%H")
+        date  = datei
+
+        levs_tmp, DayHour_tmp = [], []
+        info_check = {}
+        f = 0
+        
+        while (date <= datef):
+            
+            datefmt = date.strftime("%Y%m%d%H")
+            DayHour_tmp.append(date.strftime("%d%H"))
+            
+            # Try: For issues reading the file (file not found), 
+            # in the except statement an error message is printed and continues for other dates
+            try:
+                nloop = self[f][OuterLoop-1].iloc[-1, 0]
+                dataDict = self[f][OuterLoop-1].loc[idx[nloop,[Label]], idx[:]]
+                print('nloop = ',nloop)
+                
+                if (Flag == None or flagList == 1):
+                    levs_tmp = zflags_def[::-1]
+                    print(date.strftime(' Preparing data for: observation flags' + "%Y-%m-%d:%H"))
+                    print(' Flags: ', sorted(levs_tmp), end='\n')
+                    print("")
+                    f = f + 1
+                else:
+                    if (Flag != None and flagList != 1):
+                        levs_tmp.extend([zflag])
+                        print(date.strftime(' Preparing data for: ' + "%Y-%m-%d:%H"), ' - Flag: ', zflag , end='\n')
+                        f = f + 1
+                    else:
+                        print(date.strftime(setcolor.WARNING + ' Preparing data for: ' + "%Y-%m-%d:%H"), ' - No information on this date ' + setcolor.ENDC, end='\n')
+                
+                del(dataDict)
+                
+            except:
+                print("++++++++++++++++++++++++++ ERROR: file reading --> time_series_radi ++++++++++++++++++++++++++")
+                print(setcolor.WARNING + "    >>> No information on this date (" + str(date.strftime("%Y-%m-%d:%H")) +") <<< " + setcolor.ENDC)
+                print("")
+                f = f + 1
+            
+            date = date + timedelta(hours=int(delta))
+            
+        if(len(DayHour_tmp) > 4):
+            DayHour = [hr if (ix % int(len(DayHour_tmp) / 4)) == 0 else '' for ix, hr in enumerate(DayHour_tmp)]
+        else:
+            DayHour = DayHour_tmp
+        
+        zlevs = [z if z in zflags_def else "" for z in sorted(set(levs_tmp+zflags_def))]
+        #print('')
+        #print('zlevs = ',zlevs)
+
+        print()
+        print(separator)
+        print()
+
+        list_dataByLevs = []
+        date = datei
+        levs = sorted(list(set(levs_tmp)))
+        levs_tmp.clear()
+        del(levs_tmp[:])
+        
+        print('flags = ',levs)
+
+        
+        f = 0
+        while (date <= datef):
+
+            print(date.strftime(' Calculating for ' + "%Y-%m-%d:%H"))
+            datefmt = date.strftime("%Y%m%d%H")
+
+
+            try:
+                nloop = self[f][OuterLoop-1].iloc[-1, 0]
+                dataDict = self[f][OuterLoop-1].loc[idx[nloop,[Label]], idx[:]]
+                dataByLevs, value_dataByLevs = {}, {}
+                [dataByLevs.update({int(lvl): []}) for lvl in levs]
+                if Flag != None and flagList != 1: 
+                    forplot = 'Flag ='+str(zflag)
+                    forplotname = 'Flag_'+str(zflag)
+                    [ dataByLevs[int(zflag)].append(v) for v in self[f][OuterLoop-1].loc[idx[nloop,[Label]], idx[str(zflag)]] ]   
+                else:
+                    for ll in range(len(levs)):
+                        lv = levs[ll]
+                        cutlevs = [ v for v in self[f][OuterLoop-1].loc[idx[nloop,[Label]], idx[str(lv)]] if v != 0.0 ]
+                        forplotname = 'List_Flags'
+                        [ dataByLevs[lv].append(il) for il in cutlevs ]
+                        cutlevs.clear()
+                f = f + 1
+                for lv in levs:
+                    if len(dataByLevs[lv]) != 0:
+                        value_dataByLevs.update({int(lv): dataByLevs[lv][0]})
+                    else:
+                        value_dataByLevs.update({int(lv): -99})
+            
+            except:
+                dataByLevs, value_dataByLevs, mean_dataByLevs, std_dataByLevs, count_dataByLevs = {}, {}, {}, {}, {}
+                f = f + 1 # Estava faltando: sem essa atualização o dataDict do próximo UTC não é concatenado corretamente
+                print(setcolor.WARNING + "    >>> No information on this date (" + str(date.strftime("%Y-%m-%d:%H")) +") <<< " + setcolor.ENDC)
+
+                for lv in levs:
+                    value_dataByLevs.update({int(lv): -99})
+
+            #print('')
+            #print('value_dataByLevs = ',value_dataByLevs)
+            #print('')
+            
+            if Flag == None or flagList == 1:
+                list_dataByLevs.append(list(reversed(value_dataByLevs.values())))
+            else:
+                list_dataByLevs.append(value_dataByLevs[int(zflag)])
+
+            
+            #print('')
+            #print('list_dataByLevs = ',list_dataByLevs)
+            #print('')
+            
+            dataByLevs.clear()
+            value_dataByLevs.clear()
+
+            date_finale = date
+            date = date + timedelta(hours=int(delta))
+
+        
+        print()
+        print(separator)
+        print()
+
+        print(' Making Graphics...')
+
+        y_axis      = np.arange(0, len(zlevs), 1)
+        x_axis      = np.arange(0, len(DayHour), 1)
+
+        data_final  = np.ma.masked_array(np.array(list_dataByLevs), np.array(list_dataByLevs) == -99)
+
+        date_title = str(datei.strftime("%d%b")) + '-' + str(date_finale.strftime("%d%b")) + ' ' + str(date_finale.strftime("%Y"))
+        instrument_title = str(OuterLoop) + 'º outer loop'
+
+        # Figure with more than one Flag - default all Flags
+        if Flag == None or flagList == 1:
+            fig = plt.figure(figsize=(6, 10))
+            plt.rcParams['axes.facecolor'] = 'None'
+            plt.rcParams['hatch.linewidth'] = 0.3
+
+            plt.subplot(3, 1, 1)
+            ax = plt.gca()
+            ax.add_patch(mpl.patches.Rectangle((-1,-1),(len(DayHour)+1),(len(levs)+3), hatch='xxxxx', color='black', fill=False, snap=False, zorder=0))
+            #plt.imshow(np.flipud(mean_final.T), origin='lower', vmin=-vmaxOMAabs, vmax=vmaxOMAabs, cmap='seismic', aspect='auto', zorder=1,interpolation='none')
+#             plt.imshow(np.flipud(data_final.T), origin='lower', cmap='seismic', aspect='auto', zorder=1,interpolation='none')
+            plt.imshow(np.flipud(data_final.T), origin='lower', cmap='nipy_spectral', aspect='auto', zorder=1,interpolation='none')
+            plt.colorbar(orientation='horizontal', pad=0.18, shrink=1.0)
+            plt.tight_layout()
+            plt.title(instrument_title, loc='left', fontsize=10)
+            plt.title(date_title, loc='right', fontsize=10)
+            plt.ylabel('Flags')
+            plt.xlabel(Label+' (Inner loop '+str(nloop)+')', labelpad=60)
+            plt.yticks(y_axis, zlevs)
+            #plt.setp(ax.get_yticklabels(), rotation=45, ha="right", rotation_mode="anchor")
+            plt.xticks(x_axis, DayHour)
+            major_ticks = [ DayHour.index(dh) for dh in filter(None,DayHour) ]
+            ax.set_xticks(major_ticks)
+
+            plt.tight_layout()
+            if flagList == 1:
+                plt.savefig('hovmoller_Label_'+Label +'_'+'OuterL'+str(OuterLoop)+'_'+forplotname+'.png', bbox_inches='tight', dpi=100)
+            else:
+                plt.savefig('hovmoller_Label_'+Label + '_'+'OuterL'+str(OuterLoop)+'_all.png', bbox_inches='tight', dpi=100)
+            if Clean:
+                plt.clf()
+                
+            
+        # Figure with only one flag
+        else:
+
+            fig = plt.figure(figsize=(6, 4))
+            fig, ax1 = plt.subplots(1, 1)
+            plt.style.use('seaborn-v0_8-ticks')
+
+            plt.axhline(y=0.0,ls='solid',c='#d3d3d3')
+            plt.annotate(forplot, xy=(0.0, 0.965), xytext=(0,0), xycoords='axes fraction', textcoords='offset points', color='lightgray', fontweight='bold', fontsize='12',
+            horizontalalignment='left', verticalalignment='center')
+
+            
+            ax1.plot(x_axis, list_dataByLevs, "b-", label=Label+' (Inner loop '+str(nloop)+')')
+            ax1.plot(x_axis, list_dataByLevs, "bo", label=Label+' (Inner loop '+str(nloop)+')')
+            ax1.set_xlabel('Date (DayHour)', fontsize=10)
+            # Make the y-axis label, ticks and tick labels match the line color.
+            ax1.set_ylabel(Label, color='b', fontsize=10)
+            ax1.tick_params('y', colors='b')
+            plt.xticks(x_axis, DayHour)
+            major_ticks = [ DayHour.index(dh) for dh in filter(None,DayHour) ]
+            ax1.set_xticks(major_ticks)
+            plt.axhline(y=np.mean(list_dataByLevs),ls='dotted',c='blue')
+            
+            ax1.set_title(date_title, loc='right', fontsize=10)
+            plt.title(instrument_title, loc='left', fontsize=9)
+            plt.title(date_title, loc='right', fontsize=9)
+            plt.subplots_adjust(left=None, bottom=None, right=0.80, top=None)
+            plt.tight_layout()
+            plt.savefig('time_series_Label_'+Label +'_'+'OuterL'+str(OuterLoop)+'_'+forplotname+'.png', bbox_inches='tight', dpi=100)
+            if Clean:
+                plt.clf()
+                
+            
+        # Cleaning up
+        if Clean:
+            plt.close('all')
+
+        print(' Done!')
+        print()
+        
+               
+
+        return
+
+
+    def Mean_std_fort220(self, OuterLoop=None, cost_gradient=True, Label=None, Flag=None, dateIni=None, dateFin=None, nHour="06", Clean=None):
+        
+        '''
+        This function plots a graph of the mean values and standard deviations of the variable `Label` calculated over the time interval and for each inner loop. At the end the function returns a figure where the points are the mean values and the standard deviation is represented in the form of a vertical bar, indicating for each inner loop the variability of the data over the time interval.
+
+        '''
+        if Clean == None:
+            Clean = True
+
+        delta = nHour
+        
+        idx = pd.IndexSlice
+
+        separator = " ============================================================================================================="
+
+        print()
+        print(separator)
+        
+            
+        zloops_all = []
+        nloop_all = self[0][1].iloc[-1, 0]   # Qntdd de inner loops
+        [zloops_all.append(int(i)) for i in range(0,nloop_all+1,1)]
+        zloops_def = zloops_all    
+        
+        print('zloops_def = ',zloops_def)
+        print('')
+        print('Outer Loop: ',OuterLoop,', Label: ',Label,', Flag: ',Flag)
+
+        datei = datetime.strptime(str(dateIni), "%Y%m%d%H")
+        datef = datetime.strptime(str(dateFin), "%Y%m%d%H")
+        date  = datei
+
+        levs_tmp, DayHour_tmp = [], []
+        InnerLoop1, InnerLoop2 = [], []
+        
+        f = 0
+        if OuterLoop == None:
+            
+            if cost_gradient:
+                InnerLoop1 = self[f][0].loc[idx[:], idx['InnerLoop']]
+                InnerLoop2 = self[f][1].loc[idx[:], idx['InnerLoop']]
+            else:
+                InnerLoop1 = self[f][0].loc[idx[:,[Label]], idx['InnerLoop']]
+                InnerLoop2 = self[f][1].loc[idx[:,[Label]], idx['InnerLoop']]
+
+            nloop1 = self[f][0].iloc[-1, 0]
+            nloop2 = self[f][1].iloc[-1, 0]
+        
+            print('')
+            print('OuterLoop = ',OuterLoop,': nloop1 = ',nloop1, ' nloop2 = ',nloop2)
+            
+        else:
+            if cost_gradient:
+                InnerLoop1 = self[f][OuterLoop-1].loc[idx[:], idx['InnerLoop']]
+            else:
+                InnerLoop1 = self[f][OuterLoop-1].loc[idx[:,[Label]], idx['InnerLoop']]
+
+            nloop1 = self[f][OuterLoop-1].iloc[-1, 0]
+            nloop2 = 0
+        
+            print('')
+            print('OuterLoop = ',OuterLoop,': nloop = ',nloop1, ' nloop2 = ',nloop2)
+        
+        if OuterLoop == None:
+            OutL = 1
+        else:
+            OutL = OuterLoop
+        
+        
+        while (date <= datef):
+            
+            datefmt = date.strftime("%Y%m%d%H")
+            DayHour_tmp.append(date.strftime("%d%H"))
+            
+            # Try: For issues reading the file (file not found), 
+            # in the except statement an error message is printed and continues for other dates
+            try:
+                if cost_gradient:
+                    dataDict = self[f][OutL-1].loc[idx[:], idx[:]]
+                    if 'InnerLoop' in dataDict and Label in dataDict:
+                        print(date.strftime(' Preparing data for: ' + "%Y-%m-%d:%H"), end='\n')
+                        f = f + 1
+                    else:
+                        print(date.strftime(setcolor.WARNING + ' Preparing data for: ' + "%Y-%m-%d:%H"), ' - No information on this date ' + setcolor.ENDC, end='\n')
+                    
+                else:
+                    dataDict = self[f][OutL-1].loc[idx[:,idx[:]], idx[:]]
+                    if 'InnerLoop' in dataDict and Flag in dataDict:
+                        print(date.strftime(' Preparing data for: ' + "%Y-%m-%d:%H"), end='\n')
+                        f = f + 1
+                    else:
+                        print(date.strftime(setcolor.WARNING + ' Preparing data for: ' + "%Y-%m-%d:%H"), ' - No information on this date ' + setcolor.ENDC, end='\n')
+                
+                del(dataDict)
+                
+            except:
+                print("++++++++++++++++++++++++++ ERROR: file reading --> time_series_radi ++++++++++++++++++++++++++")
+                print(setcolor.WARNING + "    >>> No information on this date (" + str(date.strftime("%Y-%m-%d:%H")) +") <<< " + setcolor.ENDC)
+                print("")
+                f = f + 1
+            
+            date_finale = date
+            date = date + timedelta(hours=int(delta))
+        
+        DayHour = DayHour_tmp
+
+        #print()
+        #print(separator)
+        #print()
+
+        list_dataByLevs, list_meanByLevs, list_stdByLevs = [], [], []
+        date = datei
+        levs = DayHour
+        
+        print()
+        print(separator)
+        print('levs DayHour = ',levs)
+        print('len levs DayHour = ',len(levs))
+        print()
+        print(separator)
+
+        if OuterLoop == None:
+            forplot = 'nloop1_'+str(nloop1)+'_nloop2_'+str(nloop2)
+            OutL = 1
+        else:
+            forplot = 'nloop_'+str(nloop1)
+            OutL = OuterLoop
+        
+        inl = 0
+        while (inl <= nloop1):
+
+            print('Outer Loop '+ str(OutL) +' Calculating for inner loop ' + str(inl))
+
+            try: 
+                
+                value_dataByLevs, mean_dataByLevs, std_dataByLevs = {}, {}, {}
+                dataByLevs = []
+                
+                if len(levs)> 1:
+                    
+                    if cost_gradient:
+                        for ll in range(len(levs)):
+                            v = self[ll][OutL-1].loc[idx[inl], idx[Label]]
+                            dataByLevs.append(v)
+                            forplotname = Label
+
+                    else:
+                        for ll in range(len(levs)):
+                            v = self[ll][OutL-1].loc[idx[inl,[Label]], idx[Flag]].values
+                            dataByLevs.append(v)
+                            forplotname = Label + '_Flag' + Flag
+                        
+                    #print('')
+                    #print('dataByLevs = ',dataByLevs)
+                    #print('')
+                    
+                else:
+                    print(setcolor.WARNING + ' len dates is <= 1 ' + setcolor.ENDC, end='\n')
+                
+                if len(dataByLevs) != 0:
+                    mean_dataByLevs.update({int(inl): np.mean(np.array(dataByLevs))})
+                    std_dataByLevs.update({int(inl): np.std(np.array(dataByLevs))})
+                else:
+                    mean_dataByLevs.update({int(inl): -99})
+                    std_dataByLevs.update({int(inl):-99})
+                
+            
+            except:
+                dataByLevs, mean_dataByLevs, std_dataByLevs = {}, {}, {}
+                print(setcolor.WARNING + "    >>> No information on this inner loop (" + str(inl) +") <<< " + setcolor.ENDC)
+                
+                mean_dataByLevs.update({int(inl): -99})
+                std_dataByLevs.update({int(inl):-99})
+                
+
+            #print('')
+            #print('mean_dataByLevs = ',mean_dataByLevs)
+            #print('')
+            #print('std_dataByLevs = ',std_dataByLevs)
+            #print('')
+            
+            
+            list_meanByLevs.append(mean_dataByLevs[int(inl)])
+            list_stdByLevs.append(std_dataByLevs[int(inl)])
+
+            
+            #print('')
+            #print('list_meanByLevs = ',list_meanByLevs)
+            #print('')
+            #print('list_stdByLevs = ',list_stdByLevs)
+            #print('')
+            
+            dataByLevs.clear()
+            mean_dataByLevs.clear()
+            std_dataByLevs.clear()
+
+            
+            inl = inl + 1
+
+        
+        print()
+        print(separator)
+        print()
+        
+        
+        if OuterLoop == None:
+            OutL = 2
+            list2_dataByLevs, list2_meanByLevs, list2_stdByLevs = [], [], []
+            
+            inl = 0
+            while (inl <= nloop2):
+
+                print('Outer Loop '+ str(OutL) +' Calculating for inner loop ' + str(inl))
+
+                try: 
+
+                    value_dataByLevs, mean_dataByLevs, std_dataByLevs = {}, {}, {}
+                    dataByLevs = []
+
+                    if len(levs)> 1:
+
+                        if cost_gradient:
+                            for ll in range(len(levs)):
+                                v = self[ll][OutL-1].loc[idx[inl], idx[Label]]
+                                dataByLevs.append(v)
+                                forplotname = Label
+
+                        else:
+                            for ll in range(len(levs)):
+                                v = self[ll][OutL-1].loc[idx[inl,[Label]], idx[Flag]].values
+                                dataByLevs.append(v)
+                                forplotname = Label + '_Flag' + Flag
+
+                        #print('')
+                        #print('dataByLevs = ',dataByLevs)
+                        #print('')
+
+                    else:
+                        print(setcolor.WARNING + ' len dates is <= 1 ' + setcolor.ENDC, end='\n')
+
+                    if len(dataByLevs) != 0:
+                        mean_dataByLevs.update({int(inl): np.mean(np.array(dataByLevs))})
+                        std_dataByLevs.update({int(inl): np.std(np.array(dataByLevs))})
+                    else:
+                        mean_dataByLevs.update({int(inl): -99})
+                        std_dataByLevs.update({int(inl):-99})
+
+
+                except:
+                    dataByLevs, mean_dataByLevs, std_dataByLevs = {}, {}, {}
+                    print(setcolor.WARNING + "    >>> No information on this inner loop (" + str(inl) +") <<< " + setcolor.ENDC)
+
+                    mean_dataByLevs.update({int(inl): -99})
+                    std_dataByLevs.update({int(inl):-99})
+
+
+                #print('')
+                #print('mean_dataByLevs = ',mean_dataByLevs)
+                #print('')
+                #print('std_dataByLevs = ',std_dataByLevs)
+                #print('')
+
+
+                list2_meanByLevs.append(mean_dataByLevs[int(inl)])
+                list2_stdByLevs.append(std_dataByLevs[int(inl)])
+
+
+                #print('')
+                #print('list_meanByLevs = ',list_meanByLevs)
+                #print('')
+                #print('list_stdByLevs = ',list_stdByLevs)
+                #print('')
+
+                dataByLevs.clear()
+                mean_dataByLevs.clear()
+                std_dataByLevs.clear()
+
+
+                inl = inl + 1
+                
+            print()
+            print(separator)
+            print()
+
+        print(' Making Graphics...')
+
+        if OuterLoop == None:
+            x_axis      = np.arange(0, len(InnerLoop1), 1)
+            x_axis2     = np.arange(0, len(InnerLoop2), 1)
+
+            #data_final  = np.ma.masked_array(np.array(list_dataByLevs), np.array(list_dataByLevs) == -99)
+            mean_final  = np.ma.masked_array(np.array(list_meanByLevs), np.array(list_meanByLevs) == -99)
+            std_final   = np.ma.masked_array(np.array(list_stdByLevs), np.array(list_stdByLevs) == -99)
+            
+            mean_final_l2  = np.ma.masked_array(np.array(list2_meanByLevs), np.array(list2_meanByLevs) == -99)
+            std_final_l2   = np.ma.masked_array(np.array(list2_stdByLevs), np.array(list2_stdByLevs) == -99)
+            nloop = nloop2
+            
+            instrument_title = '1º and 2º outer loops' + '  |  ' + ' Max inner loop = ' + str(nloop)
+            Label_leg = '1º outer loop'
+            
+        else:
+            x_axis      = np.arange(0, len(InnerLoop1), 1)
+
+            #data_final  = np.ma.masked_array(np.array(list_dataByLevs), np.array(list_dataByLevs) == -99)
+            mean_final  = np.ma.masked_array(np.array(list_meanByLevs), np.array(list_meanByLevs) == -99)
+            std_final   = np.ma.masked_array(np.array(list_stdByLevs), np.array(list_stdByLevs) == -99)
+            nloop = nloop1
+            
+            instrument_title = str(OuterLoop) + 'º outer loop' + '  |  ' + ' Max inner loop = ' + str(nloop)
+            Label_leg = str(OuterLoop) + 'º outer loop'
+
+        date_title = str(datei.strftime("%d%b")) + '-' + str(date_finale.strftime("%d%b")) + ' ' + str(date_finale.strftime("%Y"))
+        
+        plt.rcParams['errorbar.capsize'] = 5
+        #plt.rcParams['hatch.linewidth'] = 0.3
+        
+        fig = plt.figure(figsize=(10, 6))
+        fig, ax1 = plt.subplots(figsize=(10, 6))
+        #plt.style.use('seaborn-v0_8-ticks')
+        #plt.style.use('ggplot')
+        #plt.style.use('seaborn-v0_8-dark-palette')
+        plt.style.use('seaborn-v0_8-darkgrid')
+
+        #plt.axhline(y=0.0,ls='solid',c='#d3d3d3')
+        if cost_gradient == False:
+            plt.annotate('Flag '+Flag, xy=(0.45, 1.015), xytext=(0,0), xycoords='axes fraction', textcoords='offset points', 
+                         color='gray', fontweight='bold', fontsize='12', horizontalalignment='left', verticalalignment='center')
+        
+        ax1.errorbar(x_axis, mean_final, color='navy', yerr=std_final, fmt='-o', label=Label_leg, ms=4, capsize=5, ecolor='salmon')
+        ax1.set_xlim(min(x_axis)-1, max(x_axis)+1)
+        if OuterLoop == None:
+            ax1.errorbar(x_axis2, mean_final_l2, color='forestgreen', yerr=std_final_l2, fmt='--s', label='2º outer loop', ms=4, 
+                         capsize=5, ecolor='slategrey')
+            ax1.set_xlim(min(x_axis2)-1, max(x_axis2)+1)
+        # Make the y-axis label, ticks and tick labels match the line color.
+        ax1.set_xlabel('Inner loop')
+        ax1.set_ylabel('Mean ('+Label+')', color='black', fontsize=12)
+        ax1.tick_params('y', colors='black')
+        ax1.legend(numpoints=1, loc='upper center', bbox_to_anchor=(0.5, -0.15), 
+                   fancybox=True, shadow=True, frameon=True, ncol=2, prop={"size": 10})
+        #plt.xticks(x_axis, DayHour)
+        #major_ticks = [ DayHour.index(dh) for dh in filter(None,DayHour) ]
+        #ax1.set_xticks(major_ticks)
+        ax1.grid(True)
+            
+        
+        plt.title(instrument_title, loc='left', fontsize=9)
+        plt.title(date_title, loc='right', fontsize=9)
+        plt.subplots_adjust(left=None, bottom=None, right=0.80, top=None)
+        plt.tight_layout()
+        plt.savefig('Mean'+'_'+'OuterL'+str(OuterLoop)+'_'+forplotname+'.png', bbox_inches='tight', dpi=100)
+        if Clean:
+            plt.clf()
+        
+        
+            
+        # Cleaning up
+        if Clean:
+            plt.close('all')
+
+        print(' Done!')
+        print()
+        
+               
+
+        return
+
+
+
 
 #EOC
 #-----------------------------------------------------------------------------#
