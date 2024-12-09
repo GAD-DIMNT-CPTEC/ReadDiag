@@ -605,37 +605,27 @@ class read_diag(object):
                     
                     #---------------- Iterations -----------------#
                     if re.search('Minimization iteration', line):
-                        #print('Passou 0')
                         itera = None
                         itera = line
                         itera = re.findall(r'\d+', itera)
-                        #print(itera)
                         
                         MinItera.append(int(itera[0]))
                         inner = int(itera[0])
                     
                     #---------------- costterms -----------------#
                     if re.search('costterms Jb,Jo,Jc,Jl  =', line):
-                        #print('Passou 1')
                         data1 = []
                         data1 = line
                         data1 = re.findall(r'[-+]?\d+\.\d+\D+\d+', data1)
-                        #print(data1)
                         
                         for lv in range(0,len(data1),1):
                             data1[lv] = float(data1[lv])
-                            
-                    #else:
-                    #    data1 = []
-                        
-                        
+                               
                     #---------------- cost,grad,step,b,step? -----------------#
                     if re.search('cost,grad,step,b,step', line):
-                        #print('Passou 2')
                         data2 = []
                         data2 = line
                         data2 = re.findall(r'[-+]?\d+\.\d+\D+\d+', data2)
-                        #print(data2)
                         if re.search('good', line):
                             aux2 = 'good'
                         else:
@@ -644,7 +634,7 @@ class read_diag(object):
                         for lv in range(0,len(data2),1):
                             data2[lv] = float(data2[lv])
                             
-                        #if (len(data1)>0 and len(data2)>0):
+                        
                         if (len(data1)>0 or len(data2)>0):
                             data = []
                             if len(data1) > 0:
@@ -668,11 +658,8 @@ class read_diag(object):
             file.close()
             print('')
             
-            #print('MinItera =',MinItera)
-            #print('')
-            
             InnerLoop1, InnerLoop2 = [], []
-            #it = 0
+            
             for it in range(0, len(MinItera), 1):
                 if MinItera[it] > MinItera[it+1]:
                     InnerLoop1.append(MinItera[it])
@@ -680,20 +667,12 @@ class read_diag(object):
                 else:
                     InnerLoop1.append(MinItera[it])
             
-            #if it+1 == len(InnerLoop1):
+            
             InnerLoop2 = MinItera[it+1:]
-            
-            #print('InnerLoop1 =', InnerLoop1)
-            #print('')
-            
-            #print('InnerLoop2 =', InnerLoop2)
-            #print('')
             
             
             index1 = InnerLoop1
             index2 = InnerLoop2
-            # print('index = ',index)
-            # print('')
             
             nloop_1 = InnerLoop1[-1]
             
@@ -710,7 +689,7 @@ class read_diag(object):
 # #-------------- Nova função: ler arquivo fort.220 --------------------#
     def fort_220_Flags_V3_4(DIRdiag, dates):
         """ 
-        read files fort.220 from gsi. Return an list of tables with detailed convergence information of the minimization process.
+        read files fort.220 from gsi (V 3.4). Return an list of tables with detailed convergence information of the minimization process.
         
         1. Labels detailed:
         
@@ -794,8 +773,8 @@ class read_diag(object):
         Labels = ['J', 'b', 'c', 'EJ']
         temp_Labels = [None, None, None, None]
         flags =[]
-        n_flag = 43 #56   # Qntdd de flags
-        Li = 15 #19       # Para uma iteração e label: qntdd de linhas sequenciais com as valores de contribuicao de cada flag
+        n_flag = 43   # Qntdd de flags
+        Li = 15       # Para uma iteração e label: qntdd de linhas sequenciais com as valores de contribuicao de cada flag
         [flags.append(str(i)) for i in range(1,n_flag+1,1)]
         
         print('Labels = ',Labels)
@@ -839,11 +818,9 @@ class read_diag(object):
                     
                     #---------------- Iterations -----------------#
                     if re.search('Minimization iteration', line):
-                        #print('Passou 0')
                         itera = None
                         itera = line
                         itera = re.findall(r'\d+', itera)
-                        #print(itera)
                         
                         MinItera.append(int(itera[0]))
                         inner = int(itera[0])
@@ -961,39 +938,27 @@ class read_diag(object):
             file.close()
             print('')
             
-            #print('MinItera =',MinItera)
-            #print('')
             
             InnerLoop1, InnerLoop2 = [], []
-            #it = 0
+            
             for it in range(0, len(MinItera), 1):
                 if MinItera[it] > MinItera[it+1]:
                     InnerLoop1.append(MinItera[it])
                     break
                 else:
                     InnerLoop1.append(MinItera[it])
+
             
-            #if it+1 == len(InnerLoop1):
             InnerLoop2 = MinItera[it+1:]
-            
-            #print('InnerLoop1 =', InnerLoop1)
-            #print('')
-            
-            #print('InnerLoop2 =', InnerLoop2)
-            #print('')
             
             check_Labels = []
             [check_Labels.append(x) for x in Labels if x in temp_Labels]
             
             tuples1 = [(Il, lb) for Il in InnerLoop1 for lb in Labels if lb in temp_Labels ]
             tuples2 = [(Il, lb) for Il in InnerLoop2 for lb in Labels if lb in temp_Labels ]
-            # print('tuples = ',tuples)
-            # print('')
             
             index1 = pd.MultiIndex.from_tuples(tuples1,names=['Inner loop', 'Label'])
             index2 = pd.MultiIndex.from_tuples(tuples2,names=['Inner loop', 'Label'])
-            # print('index = ',index)
-            # print('')
             
             
             nloop_1 = InnerLoop1[-1]
@@ -1014,7 +979,7 @@ class read_diag(object):
 # #-------------- Nova função: ler arquivo fort.220 --------------------#
     def fort_220_Flags_V3_7(DIRdiag, dates):
         """ 
-        read files fort.220 from gsi. Return an list of tables with detailed convergence information of the minimization process.
+        read files fort.220 from gsi (V 3.7). Return an list of tables with detailed convergence information of the minimization process.
         
         1. Labels detailed:
         
@@ -1041,50 +1006,61 @@ class read_diag(object):
         !    6  | contribution from negative gust constraint term (Jo)
         !    7  | contribution from negative vis constraint term (Jo)
         !    8  | contribution from negative pblh constraint term (Jo)
-        !
-        !-----------------------------------------------------------------------------------------------------------------------
-        ! The list below is different from the list in the Advanced User's guide version 3.4
-        !-----------------------------------------------------------------------------------------------------------------------
-        !
-        ! The list below is new information addeded in addition to the list described in the Advanced User's guide version 3.4
-        !
-        !  Flag | Observation types
-        !  +----+-----------------------------------------------------------
         !    9  | contribution from negative wspd10m constraint term (Jo)
         !    10 | contribution from negative howv constraint term (Jo)
         !    11 | contribution from negative lcbas constraint term (Jo)
+        !    12 | contribution from negative cldch constraint term (Jo)
+        !    13 | contribution from negative ql constraint term (Jl/Jg)
+        !    14 | contribution from negative qi constraint term (Jl/Jg)
+        !    15 | contribution from negative qr constraint term (Jl/Jg)
+        !    16 | contribution from negative qs constraint term (Jl/Jg)
+        !    17 | contribution from negative qg constraint term (Jl/Jg)
         !
-        !------------------------------------------------------------------------------------------
-        !
-        ! The list below reffers to the list from 9-32 of the Advanced User's guide version 3.4
-        !
+        !-----------------------------------------------------------------------------------------------------------------
+        !    Under polymorphism the following is the contents of pbs:
+        !    linear terms => pbcjo(*,n0+1:n0+nobs_type),
+        !       pbc  (*,n0+j) := pbcjo(*,j); for j=1,nobs_type
+        !    where,
+        !       pbcjo(*,   j) := sum( pbcjoi(*,j,1:nobs_bins) )
+        !-----------------------------------------------------------------------------------------------------------------
+        !    The original (wired) implementation of obs-types has
+        !    the extra contents of pbc defined as:
+        !-----------------------------------------------------------------------------------------------------------------
         !  Flag | Observation types                                       |Flag | Observation types
         !  +----+---------------------------------------------------------+-----+-----------------------------------------------
-        !    12 | contribution from ps observation  term (Jo)             |  25 | contribution from gps observation  term (Jo)
-        !    13 | contribution from t observation  term (Jo)              |  26 | contribution from rad observation  term (Jo)
-        !    14 | contribution from w observation  term (Jo)              |  27 | contribution from tcp observation  term (Jo)
-        !    15 | contribution from q observation  term (Jo)              |  28 | contribution from lag observation  term (Jo)
-        !    16 | contribution from spd observation  term (Jo)            |  29 | contribution from colvk observation  term (Jo)
-        !    17 | contribution from srw observation  term (Jo)            |  30 | contribution from aero observation  term (Jo)
-        !    18 | contribution from rw observation  term (Jo)             |  31 | contribution from aerol observation  term (Jo)
-        !    19 | contribution from dw observation  term (Jo)             |  32 | contribution from pm2_5 observation  term (Jo)
-        !    20 | contribution from sst observation  term (Jo)            |  33 | contribution from gust observation  term (Jo)
-        !    21 | contribution from pw observation  term (Jo)             |  34 | contribution from vis observation  term (Jo)
-        !    22 | contribution from pcp observation  term (Jo)            |  35 | contribution from pblh observation  term (Jo)
-        !    23 | contribution from oz observation  term (Jo)             |
-        !    24 | contribution from o3l observation  term (Jo)(not used)  |
+        !    18 | contribution from ps observation  term (Jo)             |  31 | contribution from gps refractivity  observation  term (Jo)
+        !    19 | contribution from t observation  term (Jo)              |  32 | contribution from rad observation  term (Jo)
+        !    20 | contribution from w observation  term (Jo)              |  33 | contribution from tcp observation  term (Jo)
+        !    21 | contribution from q observation  term (Jo)              |  34 | contribution from lag observation  term (Jo)
+        !    22 | contribution from spd observation  term (Jo)            |  35 | contribution from colvk observation  term (Jo)
+        !    23 | contribution from rw observation  term (Jo)             |  36 | contribution from aero observation  term (Jo)
+        !    24 | contribution from dw observation  term (Jo)             |  37 | contribution from aerol observation  term (Jo)
+        !    25 | contribution from sst observation  term (Jo)            |  38 | contribution from pm2_5 observation  term (Jo)
+        !    26 | contribution from pw observation  term (Jo)             |  39 | contribution from gust observation  term (Jo)
+        !    27 | contribution from pcp observation  term (Jo)            |  40 | contribution from vis observation  term (Jo)
+        !    28 | contribution from oz observation  term (Jo)             |  41 | contribution from pblh observation  term (Jo)
+        !    29 | contribution from o3l observation  term (Jo)(not used)  |
+        !    30 | contribution from gps bending angle observation  term (Jo)
+        !
+        !---------------------------------------------------------------------------------------------------------------------------------
+        !  Flag | Observation types                                       |Flag | Observation types
+        !  +----+---------------------------------------------------------+-----+----------------------------------------------------------
+        !    42 | contribution from wspd10m observation  term (Jo)        |  48 | contribution from tcamt observation  term (Jo)
+        !    43 | contribution from td2m observation  term (Jo)           |  49 | contribution from lcbas observation  term (Jo)
+        !    44 | contribution from mxtm observation  term (Jo)           |  50 | contribution from pm10 observation  term (Jo)
+        !    45 | contribution from mitm observation  term (Jo)           |  51 | contribution from cldch observation  term (Jo)
+        !    46 | contribution from pmsl observation  term (Jo)           |  52 | contribution from uwnd10m observation  term (Jo)
+        !    47 | contribution from howv observation  term (Jo)           |  53 | contribution from vwnd10m observation  term (Jo)
         !
         !-----------------------------------------------------------------------------------------
-        ! The list below is new information addeded in addition to the list described in the Advanced User's guide version 3.4
+        !    Users should be awared that under polymorphism, obOper types are defined on
+        !    the fly.  Such that the second index of pbc(*,:) listed above for n0:1 and
+        !    above, is no longer reflecting their actual location in arrays, e.g. pbc,
+        !    pj, etc..  The actual indices for all obOper types are defined as
+        !    enumerators in module gsi_obOperTypeManager, for any given build.  These
+        !    indices are referenceable as public iobOper_xxx integer parameters from
+        !    there, if one has to know or to reference them explicitly.
         !
-        !  Flag | Observation types                                       |Flag | Observation types
-        !  +----+---------------------------------------------------------+-----+-----------------------------------------------
-        !    36 | contribution from wspd10m observation  term (Jo)        |  40 | contribution from pmsl observation  term (Jo)
-        !    37 | contribution from td2m observation  term (Jo)           |  41 | contribution from howv observation  term (Jo)
-        !    38 | contribution from mxtm observation  term (Jo)           |  42 | contribution from tcamt observation  term (Jo)
-        !    39 | contribution from mitm observation  term (Jo)           |  43 | contribution from lcbas observation  term (Jo)
-        !
-
         
         This function return a list of the tables for first e second outer loops. 
         The columns identify flags and lines identify the tuples (inner loop, labels).
@@ -1143,11 +1119,9 @@ class read_diag(object):
                     
                     #---------------- Iterations -----------------#
                     if re.search('Minimization iteration', line):
-                        #print('Passou 0')
                         itera = None
                         itera = line
                         itera = re.findall(r'\d+', itera)
-                        #print(itera)
                         
                         MinItera.append(int(itera[0]))
                         inner = int(itera[0])
@@ -1175,7 +1149,7 @@ class read_diag(object):
                         List_data.append(data)
                         temp_Labels[0] = 'J'
                         
-                        # para encontrar b soma 15 linhas (as matrizes são escritas em sequências de 15 linhas)
+                        # para encontrar b soma Li linhas (as matrizes são escritas em sequências de Li linhas)
                         nl = nl + Li
                         line = lines[nl]
                         
@@ -1265,11 +1239,8 @@ class read_diag(object):
             file.close()
             print('')
             
-            #print('MinItera =',MinItera)
-            #print('')
-            
             InnerLoop1, InnerLoop2 = [], []
-            #it = 0
+            
             for it in range(0, len(MinItera), 1):
                 if MinItera[it] > MinItera[it+1]:
                     InnerLoop1.append(MinItera[it])
@@ -1277,28 +1248,16 @@ class read_diag(object):
                 else:
                     InnerLoop1.append(MinItera[it])
             
-            #if it+1 == len(InnerLoop1):
             InnerLoop2 = MinItera[it+1:]
-            
-            #print('InnerLoop1 =', InnerLoop1)
-            #print('')
-            
-            #print('InnerLoop2 =', InnerLoop2)
-            #print('')
             
             check_Labels = []
             [check_Labels.append(x) for x in Labels if x in temp_Labels]
             
             tuples1 = [(Il, lb) for Il in InnerLoop1 for lb in Labels if lb in temp_Labels ]
             tuples2 = [(Il, lb) for Il in InnerLoop2 for lb in Labels if lb in temp_Labels ]
-            # print('tuples = ',tuples)
-            # print('')
             
             index1 = pd.MultiIndex.from_tuples(tuples1,names=['Inner loop', 'Label'])
             index2 = pd.MultiIndex.from_tuples(tuples2,names=['Inner loop', 'Label'])
-            # print('index = ',index)
-            # print('')
-            
             
             nloop_1 = InnerLoop1[-1]
             nlabels = len(check_Labels)
@@ -1318,33 +1277,45 @@ class read_diag(object):
     
     
 # #-------------- Nova função: ler arquivo fort.207 --------------------#
-    def fort_207_statistics(DIRdiag, dates):
+    def fort_207_read(DIRdiag, dates):
         """ 
-        read files fort.220 from gsi. Return an list of tables with convergence information of the minimization process.
+        Read files fort.207 from gsi. Return an list of tables with radiance data analysis. 
+        The tables providing detailed statistics about the data in stages before the 1st outer loop (it=1), 
+        between the 1st and 2nd outer loops (it=2), and after the 2nd outer loop (it=3).
         
-        1. The values of cost function:
+        TABLE A: Summaries for various statistics as a function of observation type
+        >> Columns:
+           'it', 'sat', 'type', 'penalty', 'nobs', 'iland', 'isnoice', 'icoast', 'ireduce', 'ivarl', 'nlgross', 
+           'qcpenalty', 'qc1', 'qc2', 'qc3', 'qc4', 'qc5', 'qc6', 'qc7'
         
-        -> Jb: background term;          -> Jc: dry pressure constraint term;
-        -> Jo: observations term;        -> Jl: negative and excess moisture term.
+        TABLE B: Summaries for various statistics as a function of channel
+        >> Columns: 
+           'it', 'SN satinfo', 'nchan', 'type', 'sat', 'nobsused', 'nobstossed', 'varCH', 'biasBC', 'biasAC', 'penaltyCH', 'sqrt', 'STD'
         
-        2. The value of the cost function and norm of the gradient:
+        TABLE C: Summary for each observation type
+        >> Columns:
+           'it', 'sat', 'type', 'read', 'keep', 'assim', 'penalty', 'qcpnlty', 'cpen', 'qccpen'
         
-        -> cost: the cost function values;
-        -> grad: inner product of gradients (norm of the gradient (Y*X));
-        -> step: stepsize;
-        -> b: parameter to estimate the new search direction
-        
-        This function return a list of the tables for first e second outer loops.
-        The columns identify flags and lines identify inner loop.
+        This function return a list of the three tables.
         
         """
         
         print('DIRdiag = ',DIRdiag)
         print('')
         
-        names_columns = ['it', 'sat', 'type', 'penalty', 'nobs', 'iland', 'isnoice', 'icoast', 'ireduce', 'ivarl', 'nlgross', 'qcpenalty', 'qc1', 'qc2', 'qc3', 'qc4', 'qc5', 'qc6', 'qc7']
+        names_columnsA = ['it', 'sat', 'type', 'penalty', 'nobs', 'iland', 'isnoice', 'icoast', 'ireduce', 'ivarl', 'nlgross', 'qcpenalty', 'qc1', 'qc2', 'qc3', 'qc4', 'qc5', 'qc6', 'qc7']
         
-        print('Names columns = ',names_columns)
+        print('TABLE A: Names columns A = ',names_columnsA)
+        print('')
+        
+        names_columnsB = ['it', 'SN satinfo', 'nchan', 'type', 'sat', 'nobsused', 'nobstossed', 'varCH', 'biasBC', 'biasAC', 'penaltyCH', 'sqrt', 'STD']
+        
+        print('TABLE B: Names columns B = ',names_columnsB)
+        print('')
+        
+        names_columnsC = ['it', 'sat', 'type', 'read', 'keep', 'assim', 'penalty', 'qcpnlty', 'cpen', 'qccpen']
+        
+        print('TABLE C: Names columns C = ',names_columnsC)
         print('')
         
         pathsf, self = [], []
@@ -1369,8 +1340,7 @@ class read_diag(object):
                 
                 print('Nº total de linhas =', nlines)
                 
-                List_data = []
-                MinItera  = []
+                List_dataA, List_dataB, List_dataC = [], [], []
                 
                 ll = 1
                 it = ll
@@ -1380,7 +1350,7 @@ class read_diag(object):
                 while ( nl < nlines ):
                     line = lines[nl]
                     
-                    #---------------- Label J -----------------#
+                    #---------------- table A -----------------#
                     if re.search('sat       type              penalty    nobs   iland isnoice  icoast ireduce   ivarl nlgross', line):
                         nl = nl + 1
                         data = []
@@ -1403,14 +1373,76 @@ class read_diag(object):
                                 data.append(int(aux))
                         
                         data.insert(0,it) # inserted the stage number
-                        List_data.append(data)
+                        List_dataA.append(data)
                         nl = nl + 2
-                        lineTest = lines[nl + 1]
-                        if re.search('  rad total   penalty_all=', lineTest):
-                            ll += 1
-                            it = ll
-                            #it = 'o-g 0'+str(ll)+' rad'
+                        #lineTest = lines[nl + 1]
+                        #if re.search('  rad total   penalty_all=', lineTest):
+                        #    ll += 1
+                        #    it = ll
+                        #    #it = 'o-g 0'+str(ll)+' rad'
                     
+                    #---------------- table B -----------------#
+                    if re.search('rad total failed nonlinqc=', line):
+                        nl = nl + 1
+                        Tab = True
+                        while (Tab == True):
+                            data = []
+                            aux1 = []
+                            data = lines[nl]
+                            data = data.split()
+                            data[0] = int(data[0])
+                            data[1] = int(data[1])
+                            data[3] = int(data[3])
+                            data[4] = int(data[4])
+                            for lv in range(5,len(data),1):
+                                aux = data[lv]
+                                data[lv] = (float(aux))
+                            #separa a string 'type_sat' em dois elementos da lista data
+                            aux1 = data[2].split('_')
+                            data[2] = aux1[0]       #type
+                            data.insert(3,aux1[1])  #sat
+                            
+                            data.insert(0,it) # inserted the stage number
+                            List_dataB.append(data)
+                            nl = nl + 1
+                            line = lines[nl]
+                            if re.search('    it      satellite instrument     # read     # keep    # assim  penalty      qcpnlty       cpen      qccpen', line):
+                                Tab = False
+                    
+                    #---------------- table C -----------------#
+                    if re.search('    it      satellite instrument     # read     # keep    # assim  penalty      qcpnlty       cpen      qccpen', line):
+                        nl = nl + 1
+                        Tab = True
+                        while (Tab == True):
+                            data = []
+                            aux1 = []
+                            aux1 = lines[nl]
+                            aux1 = aux1.split()
+                            data.append(aux1[0]+' '+aux1[1]+' '+aux1[2])
+                            data.append(aux1[3])
+                            data.append(aux1[4])
+                            data.append(int(aux1[5]))
+                            data.append(int(aux1[6]))
+                            data.append(int(aux1[7]))
+                            data.append(float(aux1[8]))
+                            data.append(float(aux1[9]))
+                            data.append(float(aux1[10]))
+                            data.append(float(aux1[11]))
+                            
+                            List_dataC.append(data)
+                            nl = nl + 1
+                            if nl == nlines:
+                                Tab = False
+                                nl = nl - 1
+                            else:
+                                line = lines[nl]
+                                if re.search('sat       type              penalty    nobs   iland isnoice  icoast ireduce   ivarl nlgross', line):
+                                    Tab = False
+                                    ll += 1
+                                    it = ll
+                                    #it = 'o-g 0'+str(ll)+' rad'
+                                    nl = nl - 1
+                                
                     # próxima linha
                     nl = nl + 1
                     
@@ -1419,13 +1451,12 @@ class read_diag(object):
             file.close()
             print('')
             
-            df = pd.DataFrame(List_data, columns=names_columns)
+            df1 = pd.DataFrame(List_dataA, columns=names_columnsA)
+            df2 = pd.DataFrame(List_dataB, columns=names_columnsB)
+            df3 = pd.DataFrame(List_dataC, columns=names_columnsC)
             
-            
-            self.append(df)
+            self.append([df1, df2, df3])
             tidx = tidx + 1
-
-            
             
         return self
     
@@ -3409,8 +3440,8 @@ class plot_diag(object):
 
         Example:
 
-        varName = 'uv'           # Variable
-        varType = 224            # Source Type
+        varName = 'amsua'        # Sensor
+        varType = 'n19'          # Satellite
         dateIni = 2013010100     # Inicial Date
         dateFin = 2013010900     # Final Date
         nHour = "06"             # Time Interval
@@ -3418,32 +3449,50 @@ class plot_diag(object):
         figTS = True             # Creates the time series plot
         figMap = False           # Creates the spatial plot for each time        
         
-        ! Table: classification idqc flags
+        ! Table: classification idqc flags (atualizada com branch https://projetos.cptec.inpe.br/projects/gsi/repository/entry/branch/gsi_t11824/src/gsi/qcmod.f90 - Versão 3.7 GSI)
         !
         !    +--------+-------------------------------------------------+--------+-------------------------------------------------+
         !    |   idqc |   flag                                          |   idqc |   flag                                          |
         !    +--------+-------------------------------------------------+--------+-------------------------------------------------+
-        !    |   0    | boa observação                                  |   7    | rejeitar devido a 'nuvem > limite' para canal   |
-        !    |        |                                                 |        | na rotina qc                                    |
+        !    |   0    | Good Observations                               |                       SENSOR AMSUA                       |
+        !    |        |                                                 |                        QC_AMSUA                          |
         !    +--------+-------------------------------------------------+--------+-------------------------------------------------+
-        !    |   1    | rejeitar devido ao flag no radinfo              |   8    | rejeitar devido a estimativa imprecisa de emis- |
-        !    |        |                                                 |        | sividade/temperatura da superfície na rotina qc |
+        !    |   1    | Reject due to flag in radinfo in setuprad       |   50   | Reject because 'factch6 > limit' in subroutine  |
+        !    |        |                                                 |        | qc_amsua                                        |
         !    +--------+-------------------------------------------------+--------+-------------------------------------------------+
-        !    |   2    | falha no CRTM                                   |   9    | rejeitar devido as observações estarem fora do  |
-        !    |        |                                                 |        | intervalo na rotina de controle de qualidade    |
+        !    |   2    | Failure in CRTM in setuprad                     |   51   | Reject because 'factch4 > limit' in subroutine  |
+        !    |        |                                                 |        | qc_amsua                                        |
         !    +--------+-------------------------------------------------+--------+-------------------------------------------------+
-        !    |   3    | Rejeitar devido a falha grosseira               |   10   | rejeitar devido a recuperação física de tempera-|
-        !    |        | de verificação                                  |        | tura de superfície muito grande na rotina qc    |
+        !    |   3    | Reject due to gross check failure in setuprad   |   52   | Reject because 'sval > limit' in subroutine     |
+        !    |        |                                                 |        | qc_amsua over open water                        |
         !    +--------+-------------------------------------------------+--------+-------------------------------------------------+
-        !    |   4    | rejeitar devido à verificação                   |   50   | rejeitar porque 'factch6 > limite' na sub-rotina|
-        !    |        | de intercâmbio                                  |        | qc_amsua                                        |
+        !    |   4    | Reject due to interchannel check (if one channel|   53   | Reject because 'factch5 > limit' in subroutine  |
+        !    |        | fails in group whole group thrown out)          |        | qc_amsua over open water                        |
         !    +--------+-------------------------------------------------+--------+-------------------------------------------------+
-        !    |   5    | rejeitar devido a não usar sobre esta superfície|   51   | rejeitar porque 'factch4 > limite' na sub-rotina|
-        !    |        | na rotina de controle de qualidade              |        | qc_amsua                                        |
+        !    |   5    | Reject due to not using over this surface       |                       SENSOR HIRS/4                      |
+        !    |        | in qc routine                                   |                         QC_IRSND                         |
         !    +--------+-------------------------------------------------+--------+-------------------------------------------------+
-        !    |   6    | rejeitar devido a verificação bruta na rotina   |
-        !    |        | de controle de qualidade específica             |
+        !    |   6    | Reject due to gross check in specific           |   50   | Reject because 'wavenumber > 2400'  in          |
+        !    |        | qc routine                                      |        | subroutine qc_irsnd                             |
+        !    +--------+-------------------------------------------------+--------+-------------------------------------------------+
+        !    |   7    | Reject due to 'cloud > limit' for channel       |   51   | Reject because 'wavenumber > 2000' in           |
+        !    |        | in qc routine                                   |        | subroutine qc_irsnd                             |
+        !    +--------+-------------------------------------------------+--------+-------------------------------------------------+
+        !    |   8    | Reject due to inaccurate emissivity/surface     |   52   | Reject because goes sounder and satellite       |
+        !    |        | temperature estimate in qc routine              |        | 'zenith angle > 60' in subroutine qc_irsnd      |
+        !    +--------+-------------------------------------------------+--------+-------------------------------------------------+
+        !    |   9    | Reject due to observations being out of range   |   53   | Reject because of surface emissivity/temperature|
+        !    |        | in qc routine                                   |        | influence in subroutine qc_irsnd                |
+        !    +--------+-------------------------------------------------+--------+-------------------------------------------------+
+        !    |   11   | Reject because outside the range of             |
+        !    |        | lsingleradob                                    |
         !    +--------+-------------------------------------------------+
+        !    |   12   | Reject due to cold-air outbreak area check      |
+        !    |        | in setuprad                                     |
+        !    +--------+-------------------------------------------------+
+
+
+        Obs.: Failures specific to qc routine start at 50 and the numbers overlap
         '''
 
 
@@ -3484,11 +3533,10 @@ class plot_diag(object):
                     aux0 = list(map(int,self[f].obsInfo[varName].query("nchan=="+str(channel)).loc[varType].idqc))
                     flags = pd.unique(aux0)
                     flags.sort()
-                    print('flags = ', flags)
                 else:
                     print(setcolor.WARNING + "    >>> Flags for sensor " + varName + " not set <<< " + setcolor.ENDC)
                     
-                #[nf.update({int(i): []}) for i in flags]
+                print('flags = ', flags)
                 if len(flags) > 0:
                     List_flags.append(flags)
                 
@@ -3510,14 +3558,7 @@ class plot_diag(object):
                     exp  = "(nchan=="+str(channel)+") & (idqc=="+str(fl)+")"
                     
                     #---------------- lista com os dados da flag ------------#
-                    aux1 = self[f].obsInfo[varName].loc[varType].query(exp)
-                    
-                    #if (fl == 4):
-                    #    print('aux1 =', aux1)
-                    
-                    #---------------- cria lista da serie temp da qntdd de dados da flag ------------#
-                    #nf[int(fl)].append(len(aux1))
-                    #print('nf = ', nf)                    
+                    aux1 = self[f].obsInfo[varName].loc[varType].query(exp)                   
                     
                     #---------------- soma qntdd de dados rejeitados (idqc!=0) ------------#
                     if (fl != 0.0):
@@ -3526,8 +3567,7 @@ class plot_diag(object):
                     #---------------- Comandos de plote ------------#
                     if ( len(aux1) > 0 and figMap == True ):
                         label = "flag "+str(fl)+" ["+str(len(aux1))+"]"
-                        #color = getColor(minVal=0, maxVal=len(flags)-1, 
-                        #                 value=fl,hex=True,cmapName='Paired')
+                        
                         color = getColor(minVal=0, maxVal=len(flags), 
                                          value=ll,hex=True,cmapName='tab20')
                         
@@ -3588,8 +3628,7 @@ class plot_diag(object):
                     #---------------- Comandos de plote ------------#
                     if ( len(aux2) > 0 and figMap == True ):
                         label = label_name
-                        #color = getColor(minVal=0, maxVal=len(flags)-1, 
-                        #                 value=fl,hex=True,cmapName='Paired')
+                        
                         color = getColor(minVal=0, maxVal=len(flags), 
                                          value=ll,hex=True,cmapName='Paired')
                         
@@ -3604,7 +3643,7 @@ class plot_diag(object):
                 
                 #---------------- comandos finais do plote e salva figura ------------#
                 if (figMap):
-                    forplot = 'Channel ='+str(channel)+' | Rejected total ='+str(soma_flags)
+                    forplot = 'Channel ='+str(channel)+' | Rejected = '+str(soma_flags)
                 
                     date_title = str(date.strftime("%d%b%Y - %H%M")) + ' GMT'
                     plt.title(date_title, loc='right', fontsize=10)
@@ -3619,7 +3658,7 @@ class plot_diag(object):
                 
                     
             except:
-                print("++++++++++++++++++++++++++ ERROR: file reading --> STATCOUNT ++++++++++++++++++++++++++")
+                print("++++++++++++++++++++++++++ ERROR: file reading --> STATCOUNT_idqc ++++++++++++++++++++++++++")
                 print(setcolor.WARNING + "    >>> No information on this date (" + str(date.strftime("%Y-%m-%d:%H")) +") <<< " + setcolor.ENDC)
                 
                 
@@ -3629,92 +3668,7 @@ class plot_diag(object):
             date_finale = date
             
 
-
-#         if (figTS):
-#             if(channel == None):   # Conventional
-#                 if(len(DayHour_tmp) > 4):
-#                     DayHour = [hr if (ix % int(len(DayHour_tmp) / 4)) == 0 else '' for ix, hr in enumerate(DayHour_tmp)]
-#                 else:
-#                     DayHour = DayHour_tmp
-                
-#                 x_axis      = np.arange(0, len(DayHour), 1)
-#                 date_title = str(datei.strftime("%d%b")) + '-' + str(date_finale.strftime("%d%b")) + ' ' + str(date_finale.strftime("%Y"))
-            
-#                 fig = plt.figure(figsize=(6, 4))
-#                 fig, ax1 = plt.subplots(1, 1)
-#                 plt.style.use('seaborn-v0_8-ticks')
-
-#                 plt.axhline(y=0.0,ls='solid',c='#d3d3d3')
-
-#                 ax1.plot(x_axis, assi, "o", label="Assimilated \n["+str(sum(assi))+"]", color='green')
-#                 ax1.plot(x_axis, moni, "o", label="Monitored \n["+str(sum(moni))+"]", color='blue')
-#                 ax1.plot(x_axis, reje, "o", label="Rejected \n["+str(sum(reje))+"]", color='red')
-#                 ax1.legend(fancybox=True, frameon=True, shadow=True, loc="upper center",ncol=3)
-#                 ax1.set_xlabel('Date (DayHour)', fontsize=10)
-#                 plt.title(date_title, loc='right', fontsize=10)
-#                 plt.title(instrument_title, loc='left', fontsize=9)
-                
-#                 ax1.set_ylim(np.round(-0.05*np.max([assi,moni,reje])), np.round(1.25*np.max([assi,moni,reje])))
-#                 ax1.set_ylabel('Total Observations', color='black', fontsize=10)
-#                 ax1.tick_params('y', colors='black')
-#                 plt.xticks(x_axis, DayHour)
-#                 major_ticks = [ DayHour.index(dh) for dh in filter(None,DayHour) ]
-#                 ax1.set_xticks(major_ticks)
-#                 plt.axhline(y=np.mean(assi),ls='dotted',c='lightgray')
-#                 plt.axhline(y=np.mean(moni),ls='dotted',c='lightgray')
-#                 plt.axhline(y=np.mean(reje),ls='dotted',c='lightgray')
-#                 plt.tight_layout()
-#                 plt.savefig('time_series_'+str(varName) + '-' + str(varType)+'_TotalObs.png', bbox_inches='tight', dpi=100)
-                
-#             else:   # Radiance
-#                 if(len(DayHour_tmp) > 4):
-#                     DayHour = [hr if (ix % int(len(DayHour_tmp) / 4)) == 0 else '' for ix, hr in enumerate(DayHour_tmp)]
-#                 else:
-#                     DayHour = DayHour_tmp
-                
-#                 x_axis      = np.arange(0, len(DayHour), 1)
-#                 date_title = str(datei.strftime("%d%b")) + '-' + str(date_finale.strftime("%d%b")) + ' ' + str(date_finale.strftime("%Y"))
-            
-#                 fig = plt.figure(figsize=(6, 4))
-#                 fig, ax1 = plt.subplots(1, 1)
-#                 plt.style.use('seaborn-v0_8-ticks')
-
-#                 plt.axhline(y=0.0,ls='solid',c='#d3d3d3')
-                
-#                 # List with value None: is removed to calculate sum, max and min
-#                 # The lists below are only used to define the scale of the axes and the total sum of assi/rejei/monit data
-#                 assif     = [x for x in assi if x != None]
-#                 moniAssif = [x for x in moniAssi if x != None]
-#                 moniRejef = [x for x in moniReje if x != None]
-#                 rejef     = [x for x in reje if x != None]
-
-#                 ax1.plot(x_axis, assi, "o", label="Assimilated \n["+str(sum(assif))+"]", color='green')
-#                 ax1.plot(x_axis, moniAssi, "o", label="Monitored-Assim \n["+str(sum(moniAssif))+"]", color='teal')
-#                 ax1.plot(x_axis, moniReje, "o", label="Monitored-Rejei \n["+str(sum(moniRejef))+"]", color='purple')
-#                 ax1.plot(x_axis, reje, "o", label="Rejected \n["+str(sum(rejef))+"]", color='red')
-#                 ax1.legend(fancybox=True, frameon=True, shadow=True, loc="best",ncol=1)
-#                 ax1.set_xlabel('Date (DayHour)', fontsize=10)
-#                 plt.title(date_title, loc='right', fontsize=10)
-#                 plt.title(instrument_title, loc='left', fontsize=9)
-#                 plt.annotate(forplot, xy=(0.0, 0.965), xytext=(0, 0), xycoords='axes fraction', textcoords='offset points', 
-#                              color='lightgray', fontweight='bold', fontsize='12', horizontalalignment='left', verticalalignment='center')
-                
-#                 ax1.set_ylim(np.round(-0.05*np.max([assif,moniAssif,moniRejef,rejef])),
-#                              np.round(1.25*np.max([assif,moniAssif,moniRejef,rejef])))
-#                 ax1.set_ylabel('Total Observations', color='black', fontsize=10)
-#                 ax1.tick_params('y', colors='black')
-#                 plt.xticks(x_axis, DayHour)
-#                 major_ticks = [ DayHour.index(dh) for dh in filter(None,DayHour) ]
-#                 ax1.set_xticks(major_ticks)
-#                 plt.axhline(y=np.mean(assif),ls='dotted',c='lightgray')
-#                 plt.axhline(y=np.mean(moniAssif),ls='dotted',c='lightgray')
-#                 plt.axhline(y=np.mean(moniRejef),ls='dotted',c='lightgray')
-#                 plt.axhline(y=np.mean(rejef),ls='dotted',c='lightgray')
-#                 plt.tight_layout()
-#                 plt.savefig('time_series_'+str(varName) + '-' + str(varType) +'_'+ 'CH' + str(channel) + '_'+'_TotalObs.png',
-#                             bbox_inches='tight', dpi=100)
-
-                
+        #figTS ----> Fazer a série temporal da quantidade de obs de cada flag idqc    
 
 #-------------- Novas funções: ler e plotar arquivo fort.220 --------------------#
     def fort220_plot(self, dateIni=None, dateFin=None, nHour="06", Label=None, Flag=None, cost_gradient=False, vmin=None, vmax=None, Clean=None, **kwargs):
@@ -3761,7 +3715,6 @@ class plot_diag(object):
                 #ymax = max([max(df1), max(df2)])
                 
                 nloop_1 = InnerLoop1.iloc[-1]
-                #print('nloop_1 = ', nloop_1)
                 
                 #ymin = ymin - (ymax - ymin)/nloop_1
                 #ymax = ymax + (ymax - ymin)/nloop_1
@@ -3817,7 +3770,6 @@ class plot_diag(object):
         fig = plt.figure(figsize=(10, 6))
         fig, ax1 = plt.subplots(figsize=(10, 6))
         plt.style.use('seaborn-v0_8-darkgrid')
-        #plt.style.use('Solarize_Light2')
         
         ymin = 990000000
         ymax = 0.000000
@@ -3851,13 +3803,9 @@ class plot_diag(object):
                 ymax = max([max(df1), max(df2), ymax])
                 
                 nloop_1 = InnerLoop1.iloc[-1]
-                #print('nloop_1 = ', nloop_1)
                 
                 ymin = ymin - (ymax - ymin)/nloop_1
                 ymax = ymax + (ymax - ymin)/nloop_1
-                
-                #ymin = vmin
-                #ymax = vmax
                 
                 color = colors[f]
                 
@@ -3876,7 +3824,6 @@ class plot_diag(object):
         
         date_title = str(datei.strftime("%d%b")) + '-' + str(date_finale.strftime("%d%b")) + ' ' + str(date_finale.strftime("%Y"))
         
-        #ax1.legend(fancybox=True, frameon=True, shadow=True, loc='upper center', bbox_to_anchor=(0.5, -0.1), ncol=4)
         ax1.legend(numpoints=1, loc='upper center', bbox_to_anchor=(0.5, -0.15), 
                    fancybox=True, shadow=False, frameon=False, ncol=4, prop={"size": 10})
         ax1.grid(True)
@@ -3954,24 +3901,19 @@ class plot_diag(object):
         date_title = str(datei.strftime("%d%b")) + '-' + str(date_finale.strftime("%d%b")) + ' ' + str(date_finale.strftime("%Y"))
             
         fig = plt.figure(figsize=(10, 4))
-        #fig = plt.figure(figsize=(12, 6))
         fig, ax1 = plt.subplots(1, 1)
         plt.style.use('seaborn-v0_8-darkgrid')
 
         plt.axhline(y=0.0,ls='solid',c='#d3d3d3')
         
-        ax1.plot(x_axis, df1_first, "-o", label="1º Outer loop: Inner [0]")#, color='purple')
-        ax1.plot(x_axis, df1_last, "-o", label="1º Outer loop: Inner ["+str(nloop1)+"]")#, color='orange')
-        ax1.plot(x_axis, df2_first, "-o", label="2º Outer loop: Inner [0]")#, color='brown')
-        ax1.plot(x_axis, df2_last, "-o", label="2º Outer loop: Inner ["+str(nloop2)+"]")#, color='limegreen')
-        #plt.legend(fancybox=True, frameon=True, shadow=True, bbox_to_anchor=(1, 1), loc="upper left", ncol=1)
+        ax1.plot(x_axis, df1_first, "-o", label="1º Outer loop: Inner [0]")
+        ax1.plot(x_axis, df1_last, "-o", label="1º Outer loop: Inner ["+str(nloop1)+"]")
+        ax1.plot(x_axis, df2_first, "-o", label="2º Outer loop: Inner [0]")
+        ax1.plot(x_axis, df2_last, "-o", label="2º Outer loop: Inner ["+str(nloop2)+"]")
         ax1.legend(numpoints=1, loc='upper center', bbox_to_anchor=(0.5, -0.15), 
                    fancybox=True, shadow=True, frameon=True, ncol=2, prop={"size": 10})
         ax1.set_xlabel('Date (DayHour)', fontsize=10)
         plt.title(date_title, loc='right', fontsize=10)
-        #plt.title(instrument_title, loc='left', fontsize=9)
-        #plt.annotate(forplot, xy=(0.0, 0.965), xytext=(0, 0), xycoords='axes fraction', textcoords='offset points', 
-        #             color='lightgray', fontweight='bold', fontsize='12', horizontalalignment='left', verticalalignment='center')
                 
         ax1.set_ylim(np.round(-0.05*np.max([df1_first,df1_last,df2_first,df2_last])), 
                      np.round(1.05*np.max([df1_first,df1_last,df2_first,df2_last])))
@@ -4035,10 +3977,6 @@ class plot_diag(object):
                 
                 col_flags = self2[f][0].loc[idx[:,idx[:]], idx['1':]].columns.tolist()
                 
-                #print('')
-                #print('col_flags = ',col_flags)
-                #print('')
-                
                 for Flg in col_flags:
                     
                     try:
@@ -4082,7 +4020,6 @@ class plot_diag(object):
                         print(setcolor.WARNING + "    >>> No information on this date (" + str(date.strftime("%Y-%m-%d:%H")) +") <<< " + setcolor.ENDC)
                 
                 if len(DQ1)>0 or len(DQ2)>0:
-                    #x_axis      = np.arange(0, len(col_flags), 1)
                     x_axis1 = xFlags1
                     x_axis2 = xFlags2
                     x_Flags = sorted(list(set(xFlags1 + xFlags2)))
@@ -4108,16 +4045,10 @@ class plot_diag(object):
                     #plt.title(instrument_title, loc='left', fontsize=9)
                     plt.annotate(forplot, xy=(0.0, 0.965), xytext=(0, 0), xycoords='axes fraction', textcoords='offset points', 
                                  color='lightgray', fontweight='bold', fontsize='12', horizontalalignment='left', verticalalignment='center')
-
-                    #ax1.set_ylim(np.round(-0.05*np.max([DQ1,DQ2])), 
-                    #             np.round(1.1*np.max([DQ1,DQ2])))
+                    
                     ax1.set_ylabel('DQ = $\Delta$('+LabelObs+')/$\Delta$('+Label+')', color='black', fontsize=12)
                     ax1.tick_params('y', colors='black')
                     plt.xticks(x_axis, x_Flags)
-                    #major_ticks = [ DayHour.index(dh) for dh in filter(None,DayHour) ]
-                    #ax1.set_xticks(major_ticks)
-                    #plt.axhline(y=np.mean(DQ1),ls='dotted',c='lightgray')
-                    #plt.axhline(y=np.mean(DQ2),ls='dotted',c='lightgray')
                     plt.tight_layout()
                     plt.savefig('DQ_'+str(LabelObs) +'_'+str(Label) + 'Flag_' + str(Flag) + '_' + datefmt + '.png', 
                                 bbox_inches='tight', dpi=100)
@@ -4171,14 +4102,7 @@ class plot_diag(object):
             f = f + 1
             date = date + timedelta(hours=int(nHour))
             date_finale = date
-            
-        print('+--------- DQ1 -----------+')
-        print(DQ1)
-        print('')
         
-        print('+--------- DQ2 -----------+')
-        print(DQ2)
-        print('')
         
         if Flag != None:
             
@@ -4192,23 +4116,20 @@ class plot_diag(object):
 
             #-------------------- 1ª figura ------------------------------------------#
             fig = plt.figure(figsize=(10, 4))
-            #fig = plt.figure(figsize=(12, 6))
             fig, ax1 = plt.subplots(1, 1)
             plt.style.use('seaborn-v0_8-darkgrid')
 
             plt.axhline(y=0.0,ls='solid',c='#d3d3d3')
             forplot = 'Flag = '+Flag
 
-            ax1.plot(x_axis, Q1_first, "-o", label="1º Outer loop: Inner [0]")#, color='purple')
-            ax1.plot(x_axis, Q1_last, "-o", label="1º Outer loop: Inner ["+str(nloop1)+"]")#, color='orange')
-            ax1.plot(x_axis, Q2_first, "-o", label="2º Outer loop: Inner [0]")#, color='brown')
-            ax1.plot(x_axis, Q2_last, "-o", label="2º Outer loop: Inner ["+str(nloop2)+"]")#, color='limegreen')
-            #plt.legend(fancybox=True, frameon=True, shadow=True, bbox_to_anchor=(1, 1), loc="upper left", ncol=1)
+            ax1.plot(x_axis, Q1_first, "-o", label="1º Outer loop: Inner [0]")
+            ax1.plot(x_axis, Q1_last, "-o", label="1º Outer loop: Inner ["+str(nloop1)+"]")
+            ax1.plot(x_axis, Q2_first, "-o", label="2º Outer loop: Inner [0]")
+            ax1.plot(x_axis, Q2_last, "-o", label="2º Outer loop: Inner ["+str(nloop2)+"]")
             ax1.legend(numpoints=1, loc='upper center', bbox_to_anchor=(0.5, -0.15), 
                        fancybox=True, shadow=True, frameon=True, ncol=2, prop={"size": 10})
             ax1.set_xlabel('Date (DayHour)', fontsize=10)
             plt.title(date_title, loc='right', fontsize=10)
-            #plt.title(instrument_title, loc='left', fontsize=9)
             plt.annotate(forplot, xy=(0.0, 0.965), xytext=(0, 0), xycoords='axes fraction', textcoords='offset points', 
                          color='lightgray', fontweight='bold', fontsize='12', horizontalalignment='left', verticalalignment='center')
 
@@ -4239,19 +4160,15 @@ class plot_diag(object):
             plt.axhline(y=0.0,ls='solid',c='#d3d3d3')
             forplot = 'Flag = '+Flag
 
-            ax1.plot(x_axis, DQ1, "-o", label="1º Outer loop")#, color='navy')
-            ax1.plot(x_axis, DQ2, "-o", label="2º Outer loop")#, color='salmon')
-            #plt.legend(fancybox=True, frameon=True, shadow=True, bbox_to_anchor=(1, 1), loc="upper left", ncol=1)
+            ax1.plot(x_axis, DQ1, "-o", label="1º Outer loop")
+            ax1.plot(x_axis, DQ2, "-o", label="2º Outer loop")
             ax1.legend(numpoints=1, loc='upper center', bbox_to_anchor=(0.5, -0.15), 
                        fancybox=True, shadow=True, frameon=True, ncol=2, prop={"size": 10})
             ax1.set_xlabel('Date (DayHour)', fontsize=10)
             plt.title(date_title, loc='right', fontsize=10)
-            #plt.title(instrument_title, loc='left', fontsize=9)
             plt.annotate(forplot, xy=(0.0, 0.965), xytext=(0, 0), xycoords='axes fraction', textcoords='offset points', 
                          color='lightgray', fontweight='bold', fontsize='12', horizontalalignment='left', verticalalignment='center')
-
-            #ax1.set_ylim(np.round(-0.05*np.max([DQ1,DQ2])), 
-            #             np.round(1.1*np.max([DQ1,DQ2])))
+            
             ax1.set_ylabel('DQ = $\Delta$('+LabelObs+')/$\Delta$('+Label+')', color='black', fontsize=12)
             ax1.tick_params('y', colors='black')
             plt.xticks(x_axis, DayHour)
@@ -4356,8 +4273,6 @@ class plot_diag(object):
             DayHour = DayHour_tmp
         
         zlevs = [z if z in zflags_def else "" for z in sorted(set(levs_tmp+zflags_def))]
-        #print('')
-        #print('zlevs = ',zlevs)
 
         print()
         print(separator)
@@ -4409,20 +4324,11 @@ class plot_diag(object):
 
                 for lv in levs:
                     value_dataByLevs.update({int(lv): -99})
-
-            #print('')
-            #print('value_dataByLevs = ',value_dataByLevs)
-            #print('')
             
             if Flag == None or flagList == 1:
                 list_dataByLevs.append(list(reversed(value_dataByLevs.values())))
             else:
                 list_dataByLevs.append(value_dataByLevs[int(zflag)])
-
-            
-            #print('')
-            #print('list_dataByLevs = ',list_dataByLevs)
-            #print('')
             
             dataByLevs.clear()
             value_dataByLevs.clear()
@@ -4454,8 +4360,6 @@ class plot_diag(object):
             plt.subplot(3, 1, 1)
             ax = plt.gca()
             ax.add_patch(mpl.patches.Rectangle((-1,-1),(len(DayHour)+1),(len(levs)+3), hatch='xxxxx', color='black', fill=False, snap=False, zorder=0))
-            #plt.imshow(np.flipud(mean_final.T), origin='lower', vmin=-vmaxOMAabs, vmax=vmaxOMAabs, cmap='seismic', aspect='auto', zorder=1,interpolation='none')
-#             plt.imshow(np.flipud(data_final.T), origin='lower', cmap='seismic', aspect='auto', zorder=1,interpolation='none')
             plt.imshow(np.flipud(data_final.T), origin='lower', cmap='nipy_spectral', aspect='auto', zorder=1,interpolation='none')
             plt.colorbar(orientation='horizontal', pad=0.18, shrink=1.0)
             plt.tight_layout()
@@ -4464,7 +4368,6 @@ class plot_diag(object):
             plt.ylabel('Flags')
             plt.xlabel(Label+' (Inner loop '+str(nloop)+')', labelpad=60)
             plt.yticks(y_axis, zlevs)
-            #plt.setp(ax.get_yticklabels(), rotation=45, ha="right", rotation_mode="anchor")
             plt.xticks(x_axis, DayHour)
             major_ticks = [ DayHour.index(dh) for dh in filter(None,DayHour) ]
             ax.set_xticks(major_ticks)
@@ -4628,11 +4531,7 @@ class plot_diag(object):
             date = date + timedelta(hours=int(delta))
         
         DayHour = DayHour_tmp
-
-        #print()
-        #print(separator)
-        #print()
-
+        
         list_dataByLevs, list_meanByLevs, list_stdByLevs = [], [], []
         date = datei
         levs = DayHour
@@ -4674,10 +4573,6 @@ class plot_diag(object):
                             v = self[ll][OutL-1].loc[idx[inl,[Label]], idx[Flag]].values
                             dataByLevs.append(v)
                             forplotname = Label + '_Flag' + Flag
-                        
-                    #print('')
-                    #print('dataByLevs = ',dataByLevs)
-                    #print('')
                     
                 else:
                     print(setcolor.WARNING + ' len dates is <= 1 ' + setcolor.ENDC, end='\n')
@@ -4696,24 +4591,10 @@ class plot_diag(object):
                 
                 mean_dataByLevs.update({int(inl): -99})
                 std_dataByLevs.update({int(inl):-99})
-                
-
-            #print('')
-            #print('mean_dataByLevs = ',mean_dataByLevs)
-            #print('')
-            #print('std_dataByLevs = ',std_dataByLevs)
-            #print('')
             
             
             list_meanByLevs.append(mean_dataByLevs[int(inl)])
             list_stdByLevs.append(std_dataByLevs[int(inl)])
-
-            
-            #print('')
-            #print('list_meanByLevs = ',list_meanByLevs)
-            #print('')
-            #print('list_stdByLevs = ',list_stdByLevs)
-            #print('')
             
             dataByLevs.clear()
             mean_dataByLevs.clear()
@@ -4755,11 +4636,6 @@ class plot_diag(object):
                                 v = self[ll][OutL-1].loc[idx[inl,[Label]], idx[Flag]].values
                                 dataByLevs.append(v)
                                 forplotname = Label + '_Flag' + Flag
-
-                        #print('')
-                        #print('dataByLevs = ',dataByLevs)
-                        #print('')
-
                     else:
                         print(setcolor.WARNING + ' len dates is <= 1 ' + setcolor.ENDC, end='\n')
 
@@ -4779,22 +4655,8 @@ class plot_diag(object):
                     std_dataByLevs.update({int(inl):-99})
 
 
-                #print('')
-                #print('mean_dataByLevs = ',mean_dataByLevs)
-                #print('')
-                #print('std_dataByLevs = ',std_dataByLevs)
-                #print('')
-
-
                 list2_meanByLevs.append(mean_dataByLevs[int(inl)])
                 list2_stdByLevs.append(std_dataByLevs[int(inl)])
-
-
-                #print('')
-                #print('list_meanByLevs = ',list_meanByLevs)
-                #print('')
-                #print('list_stdByLevs = ',list_stdByLevs)
-                #print('')
 
                 dataByLevs.clear()
                 mean_dataByLevs.clear()
@@ -4812,25 +4674,29 @@ class plot_diag(object):
         if OuterLoop == None:
             x_axis      = np.arange(0, len(InnerLoop1), 1)
             x_axis2     = np.arange(0, len(InnerLoop2), 1)
-
-            #data_final  = np.ma.masked_array(np.array(list_dataByLevs), np.array(list_dataByLevs) == -99)
+            
             mean_final  = np.ma.masked_array(np.array(list_meanByLevs), np.array(list_meanByLevs) == -99)
             std_final   = np.ma.masked_array(np.array(list_stdByLevs), np.array(list_stdByLevs) == -99)
             
             mean_final_l2  = np.ma.masked_array(np.array(list2_meanByLevs), np.array(list2_meanByLevs) == -99)
             std_final_l2   = np.ma.masked_array(np.array(list2_stdByLevs), np.array(list2_stdByLevs) == -99)
             nloop = nloop2
+
+            #min_y = np.min([np.min(list_meanByLevs)-1.1*np.min(list_stdByLevs), np.min(list2_meanByLevs)-1.1*np.min(list2_stdByLevs)])
+            #max_y = np.max([np.max(list_meanByLevs)+1.1*np.max(list_stdByLevs), np.max(list2_meanByLevs)+1.1*np.max(list2_stdByLevs)])
             
             instrument_title = '1º and 2º outer loops' + '  |  ' + ' Max inner loop = ' + str(nloop)
             Label_leg = '1º outer loop'
             
         else:
             x_axis      = np.arange(0, len(InnerLoop1), 1)
-
-            #data_final  = np.ma.masked_array(np.array(list_dataByLevs), np.array(list_dataByLevs) == -99)
+            
             mean_final  = np.ma.masked_array(np.array(list_meanByLevs), np.array(list_meanByLevs) == -99)
             std_final   = np.ma.masked_array(np.array(list_stdByLevs), np.array(list_stdByLevs) == -99)
             nloop = nloop1
+
+            #min_y = np.min(list_meanByLevs)-1.1*np.min(list_stdByLevs)
+            #max_y = np.max(list_meanByLevs)+1.1*np.max(list_stdByLevs)
             
             instrument_title = str(OuterLoop) + 'º outer loop' + '  |  ' + ' Max inner loop = ' + str(nloop)
             Label_leg = str(OuterLoop) + 'º outer loop'
@@ -4838,19 +4704,16 @@ class plot_diag(object):
         date_title = str(datei.strftime("%d%b")) + '-' + str(date_finale.strftime("%d%b")) + ' ' + str(date_finale.strftime("%Y"))
         
         plt.rcParams['errorbar.capsize'] = 5
-        #plt.rcParams['hatch.linewidth'] = 0.3
         
         fig = plt.figure(figsize=(10, 6))
         fig, ax1 = plt.subplots(figsize=(10, 6))
-        #plt.style.use('seaborn-v0_8-ticks')
-        #plt.style.use('ggplot')
-        #plt.style.use('seaborn-v0_8-dark-palette')
         plt.style.use('seaborn-v0_8-darkgrid')
 
-        #plt.axhline(y=0.0,ls='solid',c='#d3d3d3')
+        #ax1.set_yscale("log") #, nonposy ='clip')
         if cost_gradient == False:
             plt.annotate('Flag '+Flag, xy=(0.45, 1.015), xytext=(0,0), xycoords='axes fraction', textcoords='offset points', 
                          color='gray', fontweight='bold', fontsize='12', horizontalalignment='left', verticalalignment='center')
+
         
         ax1.errorbar(x_axis, mean_final, color='navy', yerr=std_final, fmt='-o', label=Label_leg, ms=4, capsize=5, ecolor='salmon')
         ax1.set_xlim(min(x_axis)-1, max(x_axis)+1)
@@ -4859,16 +4722,13 @@ class plot_diag(object):
                          capsize=5, ecolor='slategrey')
             ax1.set_xlim(min(x_axis2)-1, max(x_axis2)+1)
         # Make the y-axis label, ticks and tick labels match the line color.
+        #ax1.set_ylim(bottom = min_y, top = max_y) 
         ax1.set_xlabel('Inner loop')
         ax1.set_ylabel('Mean ('+Label+')', color='black', fontsize=12)
         ax1.tick_params('y', colors='black')
         ax1.legend(numpoints=1, loc='upper center', bbox_to_anchor=(0.5, -0.15), 
                    fancybox=True, shadow=True, frameon=True, ncol=2, prop={"size": 10})
-        #plt.xticks(x_axis, DayHour)
-        #major_ticks = [ DayHour.index(dh) for dh in filter(None,DayHour) ]
-        #ax1.set_xticks(major_ticks)
         ax1.grid(True)
-            
         
         plt.title(instrument_title, loc='left', fontsize=9)
         plt.title(date_title, loc='right', fontsize=9)
@@ -4877,8 +4737,523 @@ class plot_diag(object):
         plt.savefig('Mean'+'_'+'OuterL'+str(OuterLoop)+'_'+forplotname+'.png', bbox_inches='tight', dpi=100)
         if Clean:
             plt.clf()
+
+        print(' Done!')
+        print()
+        
+               
+
+        return
+
+# -------------------------- Fort 207 (radiancia) ---------------------#
+    def time_series_fort207(self, Type=None, Sat=None, it=None, dateIni=None, dateFin=None, nHour="06", mask=None, channel=None, Clean=None):
+        
+        '''
+        The time_series_fort207 function plots a time series for fort.207 data in different channel of the contribution term. A Hovmoller diagram is return if channel=None or channel is a list.
+
+        '''
+        if Clean == None:
+            Clean = True
+
+        delta = nHour
+        
+        idx = pd.IndexSlice
+
+        separator = " ============================================================================================================="
+
+        print()
+        print(separator)
+        
+        varName = Type
+        tab = 1
+            
+        zchans_all = []
+        if varName == 'amsua':
+            zchans_all = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15] #list of all channels of the amsua sensor
+        if varName == 'hirs4':
+            zchans_all = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19] #list of all channels of the hirs/4 sensor
         
         
+        if type(channel) == list:
+            zchan = channel
+            chanList = 1
+            zchans_def = zchan
+        elif channel == None:
+            zchan = zchans_all       #list of all flags 
+            chanList = 0
+            zchans_def = zchan
+        else:
+            zchan = channel
+            chanList = 0 
+            zchans_def = zchans_all  #list of all flags 
+
+            
+        print(zchan,chanList)
+        print('')
+        print('mask = ',mask)
+        print('')
+        print('Stage it: ',it)
+        print('')
+        print('Table: ',tab)
+        print('')
+
+        datei = datetime.strptime(str(dateIni), "%Y%m%d%H")
+        datef = datetime.strptime(str(dateFin), "%Y%m%d%H")
+        date  = datei
+
+        levs_tmp, DayHour_tmp = [], []
+        info_check = {}
+        f = 0
+        
+        while (date <= datef):
+            
+            datefmt = date.strftime("%Y%m%d%H")
+            DayHour_tmp.append(date.strftime("%d%H"))
+            
+            # Try: For issues reading the file (file not found), 
+            # in the except statement an error message is printed and continues for other dates
+            try:
+                dataDict = self[f][tab].query(mask).loc[idx[:], idx['nchan']]
+                
+                if (channel == None or chanList == 1):
+                    levs_tmp = zchans_def[::-1]
+                    print(date.strftime(' Preparing data for: channels' + "%Y-%m-%d:%H"))
+                    print(' channels: ', sorted(levs_tmp), end='\n')
+                    print("")
+                    f = f + 1
+                else:
+                    if (channel != None and chanList != 1):
+                        levs_tmp.extend([zchan])
+                        print(date.strftime(' Preparing data for: ' + "%Y-%m-%d:%H"), ' - channel: ', zchan , end='\n')
+                        f = f + 1
+                    else:
+                        print(date.strftime(setcolor.WARNING + ' Preparing data for: ' + "%Y-%m-%d:%H"), ' - No information on this date ' + setcolor.ENDC, end='\n')
+                
+                del(dataDict)
+                
+            except:
+                print("++++++++++++++++++++++++++ ERROR: file reading --> time_series_fort207 ++++++++++++++++++++++++++")
+                print(setcolor.WARNING + "    >>> No information on this date (" + str(date.strftime("%Y-%m-%d:%H")) +") <<< " + setcolor.ENDC)
+                print("")
+                f = f + 1
+            
+            date = date + timedelta(hours=int(delta))
+            
+        if(len(DayHour_tmp) > 4):
+            DayHour = [hr if (ix % int(len(DayHour_tmp) / 4)) == 0 else '' for ix, hr in enumerate(DayHour_tmp)]
+        else:
+            DayHour = DayHour_tmp
+        
+        zlevs = [z if z in zchans_def else "" for z in sorted(set(levs_tmp+zchans_def))]
+
+        print()
+        print(separator)
+        print()
+
+        date = datei
+        levs = sorted(list(set(levs_tmp)))
+        levs_tmp.clear()
+        del(levs_tmp[:])
+        
+        print('channels = ',levs)
+        
+        list_dataObsU, list_dataObsT = [], []
+        list_dataVarCH, list_dataPnltCH, list_dataSqrt, list_dataSTD = [], [], [], []
+        list_dataBiasBC, list_dataBiasAC = [], []
+        
+        f = 0
+        while (date <= datef):
+
+            print(date.strftime(' Calculating for ' + "%Y-%m-%d:%H"))
+            datefmt = date.strftime("%Y%m%d%H")
+            
+            maski = "(it=="+str(it)+")"
+            try:
+                
+                dataDict = self[f][tab].query(mask)
+                dataObsU, value_dataObsU, dataObsT, value_dataObsT = {}, {}, {}, {}
+                dataVarCH, value_dataVarCH = {}, {}
+                dataPnltCH, value_dataPnltCH = {}, {}
+                dataSqrt, value_dataSqrt = {}, {}
+                dataSTD, value_dataSTD = {}, {}
+                dataBiasBC, value_dataBiasBC, dataBiasAC, value_dataBiasAC = {}, {}, {}, {}
+                [dataObsU.update({int(lvl): []}) for lvl in levs]
+                [dataObsT.update({int(lvl): []}) for lvl in levs]
+                [dataVarCH.update({int(lvl): []}) for lvl in levs]
+                [dataBiasBC.update({int(lvl): []}) for lvl in levs]
+                [dataBiasAC.update({int(lvl): []}) for lvl in levs]
+                [dataPnltCH.update({int(lvl): []}) for lvl in levs]
+                [dataSqrt.update({int(lvl): []}) for lvl in levs]
+                [dataSTD.update({int(lvl): []}) for lvl in levs]
+                #print('Passou 1')
+                if channel != None and chanList != 1: 
+                    forplot = 'Channel ='+str(zchan)
+                    forplotname = 'Channel_'+str(zchan)
+                    [ dataObsU[int(zchan)].append(v) for p,v in zip(dataDict.query(maski).nchan, dataDict.query(maski).nobsused) if int(p) == zchan ]
+                    [ dataObsT[int(zchan)].append(v) for p,v in zip(dataDict.query(maski).nchan, dataDict.query(maski).nobstossed) if int(p) == zchan ]
+                    [ dataVarCH[int(zchan)].append(v) for p,v in zip(dataDict.query(maski).nchan, dataDict.query(maski).varCH) if int(p) == zchan ]
+                    [ dataBiasBC[int(zchan)].append(v) for p,v in zip(dataDict.query(maski).nchan, dataDict.query(maski).biasBC) if int(p) == zchan ]
+                    [ dataBiasAC[int(zchan)].append(v) for p,v in zip(dataDict.query(maski).nchan, dataDict.query(maski).biasAC) if int(p) == zchan ]
+                    [ dataPnltCH[int(zchan)].append(v) for p,v in zip(dataDict.query(maski).nchan, dataDict.query(maski).penaltyCH) if int(p) == zchan ]
+                    [ dataSqrt[int(zchan)].append(v) for p,v in zip(dataDict.query(maski).nchan, dataDict.query(maski).sqrt) if int(p) == zchan ]
+                    [ dataSTD[int(zchan)].append(v) for p,v in zip(dataDict.query(maski).nchan, dataDict.query(maski).STD) if int(p) == zchan ]
+                else:
+                    for ll in range(len(levs)):
+                        lv = levs[ll]
+                        cutlevs0 = [ v for p,v in zip(dataDict.query(maski).nchan, dataDict.query(maski).nobsused) if int(p) == lv ]
+                        cutlevs1 = [ v for p,v in zip(dataDict.query(maski).nchan, dataDict.query(maski).nobstossed) if int(p) == lv ]
+                        cutlevs2 = [ v for p,v in zip(dataDict.query(maski).nchan, dataDict.query(maski).varCH) if int(p) == lv ]
+                        cutlevs3 = [ v for p,v in zip(dataDict.query(maski).nchan, dataDict.query(maski).biasBC) if int(p) == lv ]
+                        cutlevs4 = [ v for p,v in zip(dataDict.query(maski).nchan, dataDict.query(maski).biasAC) if int(p) == lv ]
+                        cutlevs5 = [ v for p,v in zip(dataDict.query(maski).nchan, dataDict.query(maski).penaltyCH) if int(p) == lv ]
+                        cutlevs6 = [ v for p,v in zip(dataDict.query(maski).nchan, dataDict.query(maski).sqrt) if int(p) == lv ]
+                        cutlevs7 = [ v for p,v in zip(dataDict.query(maski).nchan, dataDict.query(maski).STD) if int(p) == lv ]
+                        forplotname = 'List_Channels'
+                        [ dataObsU[lv].append(il) for il in cutlevs0 ]
+                        [ dataObsT[lv].append(il) for il in cutlevs1 ]
+                        [ dataVarCH[lv].append(il) for il in cutlevs2 ]
+                        [ dataBiasBC[lv].append(il) for il in cutlevs3 ]
+                        [ dataBiasAC[lv].append(il) for il in cutlevs4 ]
+                        [ dataPnltCH[lv].append(il) for il in cutlevs5 ]
+                        [ dataSqrt[lv].append(il) for il in cutlevs6 ]
+                        [ dataSTD[lv].append(il) for il in cutlevs7 ]
+                        cutlevs0.clear()
+                        cutlevs1.clear()
+                        cutlevs2.clear()
+                        cutlevs3.clear()
+                        cutlevs4.clear()
+                        cutlevs5.clear()
+                        cutlevs6.clear()
+                        cutlevs7.clear()
+                f = f + 1
+                for lv in levs:
+                    if len(dataObsU[lv]) != 0 or len(dataObsT[lv]) != 0:
+                        value_dataObsU.update({int(lv): dataObsU[lv][0]})
+                        value_dataObsT.update({int(lv): dataObsT[lv][0]})
+                    else:
+                        value_dataObsU.update({int(lv): -99})
+                        value_dataObsT.update({int(lv): -99})
+                        
+                    if len(dataVarCH[lv]) != 0 or len(dataPnltCH[lv]) != 0:
+                        value_dataVarCH.update({int(lv): dataVarCH[lv][0]})
+                        value_dataPnltCH.update({int(lv): dataPnltCH[lv][0]})
+                    else:
+                        value_dataVarCH.update({int(lv): -99})
+                        value_dataPnltCH.update({int(lv): -99})
+                        
+                    if len(dataBiasBC[lv]) != 0 or len(dataBiasAC[lv]) != 0:
+                        value_dataBiasBC.update({int(lv): dataBiasBC[lv][0]})
+                        value_dataBiasAC.update({int(lv): dataBiasAC[lv][0]})
+                    else:
+                        value_dataBiasBC.update({int(lv): -99})
+                        value_dataBiasAC.update({int(lv): -99})
+                        
+                    if len(dataSqrt[lv]) != 0 or len(dataSTD[lv]) != 0:
+                        value_dataSqrt.update({int(lv): dataSqrt[lv][0]})
+                        value_dataSTD.update({int(lv): dataSTD[lv][0]})
+                    else:
+                        value_dataSqrt.update({int(lv): -99})
+                        value_dataSTD.update({int(lv): -99})
+                        
+            
+            except:
+                dataObsU, value_dataObsU, dataObsT, value_dataObsT = {}, {}, {}, {}
+                dataVarCH, value_dataVarCH = {}, {}
+                dataPnltCH, value_dataPnltCH = {}, {}
+                dataSqrt, value_dataSqrt = {}, {}
+                dataSTD, value_dataSTD = {}, {}
+                dataBiasBC, value_dataBiasBC, dataBiasAC, value_dataBiasAC = {}, {}, {}, {}
+                f = f + 1 # Estava faltando: sem essa atualização o dataDict do próximo UTC não é concatenado corretamente
+                print(setcolor.WARNING + "    >>> No information on this date (" + str(date.strftime("%Y-%m-%d:%H")) +") <<< " + setcolor.ENDC)
+
+                for lv in levs:
+                    value_dataObsU.update({int(lv): -99})
+                    value_dataObsT.update({int(lv): -99})
+                    value_dataVarCH.update({int(lv): -99})
+                    value_dataBiasBC.update({int(lv): -99})
+                    value_dataBiasAC.update({int(lv): -99})
+                    value_dataPnltCH.update({int(lv): -99})
+                    value_dataSqrt.update({int(lv): -99})
+                    value_dataSTD.update({int(lv): -99})
+            
+            if channel == None or chanList == 1:
+                list_dataObsU.append(list(reversed(value_dataObsU.values())))
+                list_dataObsT.append(list(reversed(value_dataObsT.values())))
+                list_dataVarCH.append(list(reversed(value_dataVarCH.values())))
+                list_dataBiasBC.append(list(reversed(value_dataBiasBC.values())))
+                list_dataBiasAC.append(list(reversed(value_dataBiasAC.values())))
+                
+                list_dataPnltCH.append(list(reversed(value_dataPnltCH.values())))
+                list_dataSqrt.append(list(reversed(value_dataSqrt.values())))
+                list_dataSTD.append(list(reversed(value_dataSTD.values())))
+            else:
+                list_dataObsU.append(value_dataObsU[int(zchan)])
+                list_dataObsT.append(value_dataObsT[int(zchan)])
+                list_dataVarCH.append(value_dataVarCH[int(zchan)])
+                list_dataBiasBC.append(value_dataBiasBC[int(zchan)])
+                list_dataBiasAC.append(value_dataBiasAC[int(zchan)])
+                
+                list_dataPnltCH.append(value_dataPnltCH[int(zchan)])
+                list_dataSqrt.append(value_dataSqrt[int(zchan)])
+                list_dataSTD.append(value_dataSTD[int(zchan)])
+            
+            dataObsU.clear()
+            dataObsT.clear()
+            dataVarCH.clear()
+            dataBiasBC.clear()
+            dataBiasAC.clear()
+            value_dataObsU.clear()
+            value_dataObsT.clear()
+            value_dataVarCH.clear()
+            value_dataBiasBC.clear()
+            value_dataBiasAC.clear()
+            
+            dataPnltCH.clear()
+            dataSqrt.clear()
+            dataSTD.clear()
+
+            date_finale = date
+            date = date + timedelta(hours=int(delta))
+
+        
+        print()
+        print(separator)
+        print()
+
+        print(' Making Graphics...')
+
+        y_axis      = np.arange(0, len(zlevs), 1)
+        x_axis      = np.arange(0, len(DayHour), 1)
+
+        dataObsU_final  = np.ma.masked_array(np.array(list_dataObsU), np.array(list_dataObsU) == -99)
+        dataObsT_final  = np.ma.masked_array(np.array(list_dataObsT), np.array(list_dataObsT) == -99)
+        dataVarCH_final  = np.ma.masked_array(np.array(list_dataVarCH), np.array(list_dataVarCH) == -99)
+        dataBiasBC_final  = np.ma.masked_array(np.array(list_dataBiasBC), np.array(list_dataBiasBC) == -99)
+        dataBiasAC_final  = np.ma.masked_array(np.array(list_dataBiasAC), np.array(list_dataBiasAC) == -99)
+        
+        dataPnltCH_final  = np.ma.masked_array(np.array(list_dataPnltCH), np.array(list_dataPnltCH) == -99)
+        dataSqrt_final  = np.ma.masked_array(np.array(list_dataSqrt), np.array(list_dataSqrt) == -99)
+        dataSTD_final  = np.ma.masked_array(np.array(list_dataSTD), np.array(list_dataSTD) == -99)
+        
+        vmaxnobs = np.max(np.array([np.max(dataObsU_final), np.max(dataObsT_final)]))
+        
+        vminVarCH = 0.9*np.min(dataVarCH_final)
+        vmaxVarCH = 1.1*np.max(dataVarCH_final)
+        
+        minBias = np.min(np.array([np.min(dataBiasBC_final), np.min(dataBiasAC_final)]))
+        maxBias = np.max(np.array([np.max(dataBiasBC_final), np.max(dataBiasAC_final)]))
+        
+        limitBias = np.max([np.abs(minBias),np.abs(maxBias)])
+        
+        #vminBias = 0.9*minBias
+        #vmaxBias = 1.1*maxBias
+        
+        vminBias = -limitBias
+        vmaxBias = limitBias
+
+        date_title = str(datei.strftime("%d%b")) + '-' + str(date_finale.strftime("%d%b")) + ' ' + str(date_finale.strftime("%Y"))
+        instrument_title = Type + ' | ' + Sat + '- Stage 0'+ str(it)
+
+        # Figure with more than one Flag - default all Flags
+        if channel == None or chanList == 1:
+            fig = plt.figure(figsize=(12, 10))
+            plt.rcParams['axes.facecolor'] = 'None'
+            plt.rcParams['hatch.linewidth'] = 0.3
+
+            plt.subplot(3, 2, 1)
+            ax = plt.gca()
+            ax.add_patch(mpl.patches.Rectangle((-1,-1),(len(DayHour)+1),(len(levs)+3), hatch='xxxxx', color='black', fill=False, snap=False, zorder=0))
+            plt.imshow(np.flipud(dataObsU_final.T), origin='lower', vmin=0.0, vmax=vmaxnobs, cmap='gist_heat_r', aspect='auto', zorder=1,interpolation='none')
+            plt.colorbar(orientation='horizontal', pad=0.18, shrink=1.0)
+            plt.tight_layout()
+            plt.title(instrument_title, loc='left', fontsize=10)
+            plt.title(date_title, loc='right', fontsize=10)
+            plt.ylabel('Channels')
+            plt.xlabel('Number of observations used', labelpad=60)
+            plt.yticks(y_axis, zlevs)
+            plt.xticks(x_axis, DayHour)
+            major_ticks = [ DayHour.index(dh) for dh in filter(None,DayHour) ]
+            ax.set_xticks(major_ticks)
+            
+            plt.subplot(3, 2, 2)
+            ax = plt.gca()
+            ax.add_patch(mpl.patches.Rectangle((-1,-1),(len(DayHour)+1),(len(levs)+3), hatch='xxxxx', color='black', fill=False, snap=False, zorder=0))
+            plt.imshow(np.flipud(dataObsT_final.T), origin='lower', vmin=0.0, vmax=vmaxnobs, cmap='gist_heat_r', aspect='auto', zorder=1,interpolation='none')
+            plt.colorbar(orientation='horizontal', pad=0.18, shrink=1.0)
+            plt.tight_layout()
+            plt.title(instrument_title, loc='left', fontsize=10)
+            plt.title(date_title, loc='right', fontsize=10)
+            plt.ylabel('Channels')
+            plt.xlabel('Number of observations tossed', labelpad=60)
+            plt.yticks(y_axis, zlevs)
+            plt.xticks(x_axis, DayHour)
+            major_ticks = [ DayHour.index(dh) for dh in filter(None,DayHour) ]
+            ax.set_xticks(major_ticks)
+            
+            plt.subplot(3, 2, 3)
+            ax = plt.gca()
+            ax.add_patch(mpl.patches.Rectangle((-1,-1),(len(DayHour)+1),(len(levs)+3), hatch='xxxxx', color='black', fill=False, snap=False, zorder=0))
+            plt.imshow(np.flipud(dataBiasBC_final.T), origin='lower', vmin=vminBias, vmax=vmaxBias, cmap='seismic', aspect='auto', zorder=1,interpolation='none')
+            plt.colorbar(orientation='horizontal', pad=0.18, shrink=1.0)
+            plt.tight_layout()
+            plt.title(instrument_title, loc='left', fontsize=10)
+            plt.title(date_title, loc='right', fontsize=10)
+            plt.ylabel('Channels')
+            plt.xlabel('Observation-guess before bias correction', labelpad=60)
+            plt.yticks(y_axis, zlevs)
+            plt.xticks(x_axis, DayHour)
+            major_ticks = [ DayHour.index(dh) for dh in filter(None,DayHour) ]
+            ax.set_xticks(major_ticks)
+            
+            plt.subplot(3, 2, 4)
+            ax = plt.gca()
+            ax.add_patch(mpl.patches.Rectangle((-1,-1),(len(DayHour)+1),(len(levs)+3), hatch='xxxxx', color='black', fill=False, snap=False, zorder=0))
+            plt.imshow(np.flipud(dataBiasAC_final.T), origin='lower', vmin=vminBias, vmax=vmaxBias, cmap='seismic', aspect='auto', zorder=1,interpolation='none')
+            plt.colorbar(orientation='horizontal', pad=0.18, shrink=1.0)
+            plt.tight_layout()
+            plt.title(instrument_title, loc='left', fontsize=10)
+            plt.title(date_title, loc='right', fontsize=10)
+            plt.ylabel('Channels')
+            plt.xlabel('Observation-guess after bias correction', labelpad=60)
+            plt.yticks(y_axis, zlevs)
+            plt.xticks(x_axis, DayHour)
+            major_ticks = [ DayHour.index(dh) for dh in filter(None,DayHour) ]
+            ax.set_xticks(major_ticks)
+            
+            plt.subplot(3, 2, 5)
+            ax = plt.gca()
+            ax.add_patch(mpl.patches.Rectangle((-1,-1),(len(DayHour)+1),(len(levs)+3), hatch='xxxxx', color='black', fill=False, snap=False, zorder=0))
+            plt.imshow(np.flipud(dataPnltCH_final.T), origin='lower', cmap='YlGnBu', aspect='auto', zorder=1,interpolation='none')
+            plt.colorbar(orientation='horizontal', pad=0.18, shrink=1.0)
+            plt.tight_layout()
+            plt.title(instrument_title, loc='left', fontsize=10)
+            plt.title(date_title, loc='right', fontsize=10)
+            plt.ylabel('Channels')
+            plt.xlabel('Penalty channel', labelpad=60)
+            plt.yticks(y_axis, zlevs)
+            plt.xticks(x_axis, DayHour)
+            major_ticks = [ DayHour.index(dh) for dh in filter(None,DayHour) ]
+            ax.set_xticks(major_ticks)
+            
+            plt.subplot(3, 2, 6)
+            ax = plt.gca()
+            ax.add_patch(mpl.patches.Rectangle((-1,-1),(len(DayHour)+1),(len(levs)+3), hatch='xxxxx', color='black', fill=False, snap=False, zorder=0))
+            plt.imshow(np.flipud(dataSTD_final.T), origin='lower', cmap='Blues', aspect='auto', zorder=1,interpolation='none')
+            plt.colorbar(orientation='horizontal', pad=0.18, shrink=1.0)
+            plt.tight_layout()
+            plt.title(instrument_title, loc='left', fontsize=10)
+            plt.title(date_title, loc='right', fontsize=10)
+            plt.ylabel('Channels')
+            plt.xlabel('STD', labelpad=60)
+            plt.yticks(y_axis, zlevs)
+            plt.xticks(x_axis, DayHour)
+            major_ticks = [ DayHour.index(dh) for dh in filter(None,DayHour) ]
+            ax.set_xticks(major_ticks)
+            
+
+            plt.tight_layout()
+            if chanList == 1:
+                plt.savefig('hovmoller_'+ Type +'_'+ Sat +'_it'+ str(it) +'_'+ forplotname+'.png', bbox_inches='tight', dpi=100)
+            else:
+                plt.savefig('hovmoller_'+ Type +'_'+ Sat +'_it'+ str(it) +'_all.png', bbox_inches='tight', dpi=100)
+            if Clean:
+                plt.clf()
+                
+            
+        # Figure with only one flag
+        else:
+
+            fig = plt.figure(figsize=(8, 4))
+            fig, ax1 = plt.subplots(figsize=(8, 4))
+            plt.style.use('seaborn-v0_8-ticks')
+
+            plt.axhline(y=0.0,ls='solid',c='#d3d3d3')
+            plt.annotate(forplot, xy=(0.45, 1.025), xytext=(0,0), xycoords='axes fraction', textcoords='offset points', color='slategray', fontweight='bold', fontsize='10',
+            horizontalalignment='left', verticalalignment='center')
+            
+            ax1.plot(x_axis, list_dataBiasBC, "-o", c='navy', label="bias (before bias correction)") #c='steelblue'
+            ax1.plot(x_axis, list_dataBiasAC, "-s", c='tomato', label="bias (after bias correction)")
+            ax1.fill_between(x_axis, np.array(list_dataBiasAC) - np.array(list_dataSTD), np.array(list_dataBiasAC) + np.array(list_dataSTD), label='Std Dev',  facecolor='tomato', alpha=0.2, zorder=2)
+            
+            ax1.set_xlabel('Date (DayHour)', fontsize=10)
+            # Make the y-axis label, ticks and tick labels match the line color.
+            ax1.set_ylim(1.1*vminBias, 1.1*vmaxBias)
+            ax1.set_ylabel('Bias', color='black', fontsize=10)
+            ax1.tick_params('y', colors='black')
+            plt.xticks(x_axis, DayHour)
+            major_ticks = [ DayHour.index(dh) for dh in filter(None,DayHour) ]
+            ax1.set_xticks(major_ticks)
+            plt.axhline(y=np.mean(list_dataBiasBC),ls='dotted',c='steelblue')
+            plt.axhline(y=np.mean(list_dataBiasAC),ls='dotted',c='tomato')
+            
+            plt.legend(numpoints=1, loc='upper center', bbox_to_anchor=(0.5, -0.15), 
+                   fancybox=True, shadow=True, frameon=True, ncol=3, prop={"size": 10})
+            
+            plt.title(instrument_title, loc='left', fontsize=9)
+            plt.title(date_title, loc='right', fontsize=9)
+            plt.subplots_adjust(left=None, bottom=None, right=0.80, top=None)
+            plt.tight_layout()
+            plt.savefig('time_series_bias_'+ Type +'_'+ Sat +'_it'+ str(it) +'_'+forplotname+'.png', bbox_inches='tight', dpi=100)
+            if Clean:
+                plt.clf()
+            
+            
+            fig = plt.figure(figsize=(7, 4))
+            fig, ax1 = plt.subplots(figsize=(7, 4))
+            plt.style.use('seaborn-v0_8-ticks')
+
+            plt.axhline(y=0.0,ls='solid',c='#d3d3d3')
+            plt.annotate(forplot, xy=(0.45, 1.025), xytext=(0,0), xycoords='axes fraction', textcoords='offset points', color='slategray', fontweight='bold', fontsize='10',
+            horizontalalignment='left', verticalalignment='center')
+
+            #ax1.plot(x_axis, list_dataBiasBC, "b-", label="bias (before bias correction)")
+            p1 = ax1.plot(x_axis, list_dataObsU, "-", c='teal', label="nobs (used in GSI analysis)") #c='steelblue'
+            label1 = "nobs (used in GSI analysis)"
+            #ax1.plot(x_axis, list_dataObsU, "-", c='teal', label="nobs (used in GSI analysis)") #c='steelblue'
+            #ax1.plot(x_axis, list_dataObsT, "--", c='red', label="nobs (tossed by gross check)")
+            #ax1.plot(x_axis, np.array(list_dataObsU) - np.array(list_dataObsT), "-", c='red', label="nobs (used less tossed by gross check)")
+            #ax1.fill_between(x_axis, np.array(list_dataBiasAC) - np.array(list_dataSTD), np.array(list_dataBiasAC) + np.array(list_dataSTD), label='Std Dev',  facecolor='tomato', alpha=0.2, zorder=2)
+            #ax1.bar(x_axis, list_dataBiasAC, yerr=list_dataSTD, ms=4, capsize=5, ecolor='tomato')
+            ax1.set_xlabel('Date (DayHour)', fontsize=10)
+            # Make the y-axis label, ticks and tick labels match the line color.
+            ax1.set_ylim(0.0, 1.1*vmaxnobs)
+            ax1.set_ylabel('nobs - used', color='teal', fontsize=10)
+            ax1.tick_params('y', colors='teal')
+            plt.xticks(x_axis, DayHour)
+            major_ticks = [ DayHour.index(dh) for dh in filter(None,DayHour) ]
+            ax1.set_xticks(major_ticks)
+            #plt.axhline(y=np.mean(list_dataBiasBC),ls='dotted',c='steelblue')
+            #plt.axhline(y=np.mean(list_dataBiasAC),ls='dotted',c='tomato')
+            
+            
+            ax2 = ax1.twinx()
+            p2 = ax2.plot(x_axis, list_dataObsT, "--", c='red', label="nobs (tossed by gross check)")
+            label2 = "nobs (tossed by gross check)"
+            #ax2.plot(x_axis, std_finala, "r-", label="Std. Deviation ("+omflaga+")")
+            #ax2.plot(x_axis, std_finala, "rs", label="Std. Deviation ("+omflaga+")")
+            ax2.set_ylim(0.0, 1.1*np.max(dataObsT_final))
+            ax2.set_ylabel('nobs - tossed', color='r', fontsize=10)
+            ax2.tick_params('y', colors='r')
+            #ax2.yaxis.set_major_formatter(FormatStrFormatter('%.0f'))
+            #plt.axhline(y=np.mean(std_finala),ls='dotted',c='red')
+
+            ps = p1 + p2
+            labs = [l.get_label() for l in ps]
+            
+            plt.legend(ps, labs, numpoints=1, loc='upper center', bbox_to_anchor=(0.5, -0.15), 
+                   fancybox=True, shadow=True, frameon=True, ncol=2, prop={"size": 10})
+            
+            #plt.xticks(x_axis, DayHour)
+            #major_ticks = [ DayHour.index(dh) for dh in filter(None,DayHour) ]
+            #ax3.set_xticks(major_ticks)
+            plt.title(instrument_title, loc='left', fontsize=9)
+            plt.title(date_title, loc='right', fontsize=9)
+            plt.subplots_adjust(left=None, bottom=None, right=0.80, top=None)
+            plt.tight_layout()
+            plt.savefig('time_series_nobs_'+ Type +'_'+ Sat +'_it'+ str(it) +'_'+forplotname+'.png', bbox_inches='tight', dpi=100)
+            if Clean:
+                plt.clf()
+                
             
         # Cleaning up
         if Clean:
